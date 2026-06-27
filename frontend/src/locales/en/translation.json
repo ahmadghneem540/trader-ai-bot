@@ -1,0 +1,123 @@
+{
+  "appTitle": "TraderAI - Gold",
+  "nav": {
+    "dashboard": "Dashboard",
+    "mt5Connection": "MT5 Connection",
+    "goldChart": "Gold Chart",
+    "openPositions": "Open Positions",
+    "tradeHistory": "Trade History",
+    "strategySettings": "Strategy Settings",
+    "logs": "Logs",
+    "debugConsole": "Debug Console"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "mt5Connection": "MT5 Connection",
+    "statusConnected": "Connected",
+    "statusDisconnected": "Disconnected",
+    "balance": "Balance",
+    "equity": "Equity",
+    "margin": "Margin",
+    "freeMargin": "Free Margin",
+    "profit": "Profit",
+    "openPositions": "Open Positions",
+    "ticket": "Ticket",
+    "type": "Type",
+    "volume": "Volume",
+    "openPrice": "Open Price",
+    "currentPrice": "Current Price",
+    "profit": "Profit"
+  },
+  "mt5Connection": {
+    "title": "MT5 Connection",
+    "accountLogin": "Account Login",
+    "password": "Password",
+    "brokerServer": "Broker Server",
+    "connect": "Connect",
+    "connecting": "Connecting...",
+    "disconnect": "Disconnect",
+    "testConnection": "Test Connection",
+    "connectedSuccess": "Successfully connected to MT5!",
+    "disconnectedSuccess": "Successfully disconnected from MT5!",
+    "connectionFailed": "Connection failed",
+    "testFailed": "Test connection failed",
+    "accountNumber": "Account Number",
+    "accountName": "Account Name",
+    "server": "Server",
+    "connectionStatus": "Connection Status",
+    "statusOnline": "Online"
+  },
+  "goldChart": {
+    "title": "XAUUSD Chart",
+    "timeframes": {
+      "M1": "M1",
+      "M5": "M5",
+      "M15": "M15",
+      "M30": "M30",
+      "H1": "H1",
+      "H4": "H4",
+      "D1": "D1"
+    },
+    "tradingPanel": {
+      "title": "XAUUSD Trading",
+      "bid": "Bid",
+      "ask": "Ask",
+      "spread": "Spread",
+      "balance": "Balance",
+      "equity": "Equity",
+      "lotSize": "Lot Size",
+      "stopLoss": "Stop Loss",
+      "takeProfit": "Take Profit",
+      "buy": "Buy",
+      "sell": "Sell",
+      "closeAll": "Close All Positions"
+    }
+  },
+  "openPositions": {
+    "title": "Open Positions",
+    "noPositions": "No open positions",
+    "ticket": "Ticket",
+    "type": "Type",
+    "symbol": "Symbol",
+    "volume": "Volume",
+    "openPrice": "Open Price",
+    "currentPrice": "Current Price",
+    "sl": "SL",
+    "tp": "TP",
+    "profit": "Profit",
+    "swap": "Swap",
+    "openTime": "Open Time",
+    "close": "Close",
+    "closing": "Closing...",
+    "closeSuccess": "Position closed successfully",
+    "closeFailed": "Failed to close position",
+    "action": "Action"
+  },
+  "tradeHistory": {
+    "title": "Trade History",
+    "showLast": "Show last",
+    "days": "days",
+    "totalTrades": "Total Trades",
+    "winningTrades": "Winning Trades",
+    "losingTrades": "Losing Trades",
+    "winRate": "Win Rate",
+    "totalProfit": "Total Profit",
+    "noTrades": "No trades found for this period",
+    "ticket": "Ticket",
+    "type": "Type",
+    "symbol": "Symbol",
+    "volume": "Volume",
+    "openPrice": "Open Price",
+    "closePrice": "Close Price",
+    "profit": "Profit",
+    "closeTime": "Close Time"
+  },
+  "strategySettings": {
+    "title": "Strategy Settings",
+    "comingSoon": "Strategy settings coming soon!"
+  },
+  "logs": {
+    "title": "Logs",
+    "comingSoon": "Logs coming soon!"
+  }
+}

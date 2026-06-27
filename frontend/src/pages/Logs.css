@@ -1,0 +1,29 @@
+.logs {
+  padding: 2rem;
+}
+
+.logs h1 {
+  color: #fff;
+  margin-bottom: 2rem;
+}
+
+.logs-container {
+  max-width: 1000px;
+}
+
+.logs-card {
+  background: #16213e;
+  padding: 2rem;
+  border-radius: 8px;
+  border: 1px solid #333;
+}
+
+.logs-card h2 {
+  color: #ffd700;
+  margin-bottom: 1rem;
+}
+
+.coming-soon {
+  color: #888;
+  font-size: 1.125rem;
+}

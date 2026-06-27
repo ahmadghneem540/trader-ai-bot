@@ -1,0 +1,66 @@
+.gold-chart {
+  padding: 2rem;
+  height: calc(100vh - 80px);
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.chart-header h1 {
+  color: #fff;
+}
+
+.timeframe-selector {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.timeframe-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid #333;
+  border-radius: 6px;
+  background: #16213e;
+  color: #aaa;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.timeframe-btn:hover {
+  border-color: #ffd700;
+}
+
+.timeframe-btn.active {
+  background: #ffd700;
+  color: #000;
+  border-color: #ffd700;
+}
+
+.chart-container {
+  flex: 1;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.chart-main {
+  flex: 1;
+  background: #16213e;
+  border-radius: 8px;
+  border: 1px solid #333;
+  overflow: hidden;
+}
+
+.chart-element {
+  width: 100%;
+  height: 100%;
+}
+
+.chart-sidebar {
+  width: 320px;
+  flex-shrink: 0;
+}

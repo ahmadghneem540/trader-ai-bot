@@ -1,0 +1,215 @@
+.dashboard {
+  min-height: 100vh;
+  background: #0f1419;
+  color: #e0e0e0;
+}
+
+.dashboard-content {
+  padding: 20px;
+  max-width: 1600px;
+  margin: 0 auto;
+}
+
+.dashboard-header {
+  margin-bottom: 30px;
+}
+
+.dashboard-tabs {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  border-bottom: 1px solid #333;
+}
+
+.tab-btn {
+  padding: 12px 24px;
+  background: transparent;
+  border: none;
+  color: #aaa;
+  cursor: pointer;
+  font-size: 16px;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.tab-btn:hover {
+  color: #fff;
+}
+
+.tab-btn.active {
+  color: #4ecdc4;
+  border-bottom-color: #4ecdc4;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 20px;
+}
+
+.stat-card {
+  background: #1a1f2e;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+}
+
+.stat-card h3 {
+  margin: 0 0 12px 0;
+  color: #aaa;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.stat-value.positive {
+  color: #4ecdc4;
+}
+
+.stat-value.negative {
+  color: #ff6b6b;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 18px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.status-indicator.connected .status-dot {
+  background: #4ecdc4;
+  box-shadow: 0 0 10px #4ecdc4;
+}
+
+.status-indicator.disconnected .status-dot {
+  background: #ff6b6b;
+  box-shadow: 0 0 10px #ff6b6b;
+}
+
+.account-details {
+  margin-top: 15px;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.account-details p {
+  margin: 5px 0;
+}
+
+.tick-info p {
+  margin: 5px 0;
+  font-size: 16px;
+}
+
+.positions-section,
+.orders-section,
+.market-section {
+  background: #1a1f2e;
+  border-radius: 12px;
+  padding: 24px;
+}
+
+.positions-table-container,
+.orders-table-container,
+.market-table-container {
+  overflow-x: auto;
+}
+
+.positions-table,
+.orders-table,
+.market-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.positions-table th,
+.orders-table th,
+.market-table th {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid #333;
+  color: #aaa;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.positions-table td,
+.orders-table td,
+.market-table td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #2a2f3e;
+  font-size: 14px;
+}
+
+.position-type {
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.position-type.buy {
+  background: rgba(78, 205, 196, 0.2);
+  color: #4ecdc4;
+}
+
+.position-type.sell {
+  background: rgba(255, 107, 107, 0.2);
+  color: #ff6b6b;
+}
+
+.profit.positive {
+  color: #4ecdc4;
+}
+
+.profit.negative {
+  color: #ff6b6b;
+}
+
+.no-data {
+  text-align: center;
+  padding: 40px;
+  color: #aaa;
+  font-size: 16px;
+}
+
+.dashboard-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #0f1419;
+  color: #e0e0e0;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #333;
+  border-top-color: #4ecdc4;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}

@@ -1,0 +1,87 @@
+.navbar {
+  background: #1a1a2e;
+  padding: 1rem 2rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #333;
+}
+
+.navbar-brand a {
+  color: #ffd700;
+  text-decoration: none;
+  font-size: 1.5rem;
+  font-weight: bold;
+}
+
+.navbar-links {
+  display: flex;
+  gap: 2rem;
+}
+
+.navbar-links a {
+  color: #eee;
+  text-decoration: none;
+  transition: color 0.3s;
+}
+
+.navbar-links a:hover {
+  color: #ffd700;
+}
+
+.language-switcher {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.language-switcher button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #ffd700;
+  border-radius: 4px;
+  background: transparent;
+  color: #ffd700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.language-switcher button:hover {
+  background: #ffd700;
+  color: #1a1a2e;
+}
+
+.mt5-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-right: 1rem;
+}
+
+.mt5-status .status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-connected .status-dot {
+  background-color: #4ecdc4;
+  box-shadow: 0 0 10px #4ecdc4;
+}
+
+.status-disconnected .status-dot {
+  background-color: #ff6b6b;
+  box-shadow: 0 0 10px #ff6b6b;
+}
+
+.status-connected {
+  color: #4ecdc4;
+}
+
+.status-disconnected {
+  color: #ff6b6b;
+}
+
+.language-switcher button.active {
+  background: #ffd700;
+  color: #1a1a2e;
+}

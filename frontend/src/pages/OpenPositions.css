@@ -1,0 +1,100 @@
+.open-positions {
+  padding: 2rem;
+}
+
+.open-positions h1 {
+  color: #fff;
+  margin-bottom: 2rem;
+}
+
+.no-positions {
+  text-align: center;
+  padding: 3rem;
+  color: #888;
+  font-size: 1.25rem;
+}
+
+.positions-table-container {
+  overflow-x: auto;
+}
+
+.positions-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: #16213e;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.positions-table thead {
+  background: #1a1a2e;
+}
+
+.positions-table th {
+  padding: 1rem;
+  text-align: left;
+  color: #ffd700;
+  font-weight: 600;
+  border-bottom: 1px solid #333;
+}
+
+.positions-table td {
+  padding: 1rem;
+  color: #ddd;
+  border-bottom: 1px solid #333;
+}
+
+.positions-table tbody tr:hover {
+  background: #1a1a2e;
+}
+
+.ticket {
+  font-family: monospace;
+  color: #aaa;
+}
+
+.position-type-badge {
+  padding: 0.25rem 0.75rem;
+  border-radius: 4px;
+  font-weight: bold;
+  font-size: 0.875rem;
+}
+
+.position-type-badge.buy {
+  background: #4ecdc4;
+  color: #000;
+}
+
+.position-type-badge.sell {
+  background: #ff6b6b;
+  color: #fff;
+}
+
+.profit-cell.positive {
+  color: #4ecdc4;
+  font-weight: bold;
+}
+
+.profit-cell.negative {
+  color: #ff6b6b;
+  font-weight: bold;
+}
+
+.close-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  background: #ff6b6b;
+  color: #fff;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.close-btn:hover:not(:disabled) {
+  opacity: 0.8;
+}
+
+.close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
