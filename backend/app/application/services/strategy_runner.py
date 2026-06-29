@@ -14,6 +14,7 @@ from app.infrastructure.database.repositories import (
 )
 from app.domain.models.log_entry import LogEntry
 from app.application.services.strategies.ema_trend import EMATrendStrategy
+from app.application.services.strategies.ai_strategy import AIStrategy
 from app.core.logging.logger import get_logger
 
 logger = get_logger(__name__)
@@ -23,7 +24,8 @@ class StrategyRunner:
     def __init__(self):
         self.supported_symbols = ["XAUUSD", "EURUSD", "GBPUSD", "USDJPY"]
         self.strategies = {
-            "EMATrendStrategy": EMATrendStrategy
+            "EMATrendStrategy": EMATrendStrategy,
+            "AIStrategy": AIStrategy
         }
         self.mt5 = MT5Connector()
 

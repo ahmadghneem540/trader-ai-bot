@@ -357,6 +357,18 @@ class MT5ConnectionStatus(BaseModel):
     account_info: Optional[Dict[str, Any]] = None
 
 
+class MT5StatusResponse(BaseModel):
+    connected: bool
+    terminal: Optional[str] = None
+    account: Optional[str] = None
+    server: Optional[str] = None
+    balance: float = 0.0
+    equity: float = 0.0
+    symbol_ready: bool = False
+    candles_ready: bool = False
+    last_error: Optional[str] = None
+
+
 class MT5AccountInfo(BaseModel):
     login: int
     name: str
@@ -415,3 +427,28 @@ class TradingPanelRequest(BaseModel):
     volume: float
     sl: Optional[float] = None
     tp: Optional[float] = None
+
+
+class SimpleCandle(BaseModel):
+    time: datetime
+    open: float
+    high: float
+    low: float
+    close: float
+    tick_volume: Optional[int] = None
+    spread: Optional[int] = None
+    real_volume: Optional[int] = None
+
+
+class AIAnalyzeRequest(BaseModel):
+    symbol: str
+    timeframe: str
+    candles: List[SimpleCandle]
+
+
+class AIAnalyzeResponse(BaseModel):
+    trend: str
+    confidence: int
+    reason: str
+    support: List[float]
+    resistance: List[float]

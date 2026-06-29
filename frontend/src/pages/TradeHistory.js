@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getMT5History } from '../services/api';
+import Navbar from '../components/Navbar';
 import './TradeHistory.css';
 
 function TradeHistory() {
@@ -21,6 +22,7 @@ function TradeHistory() {
 
   return (
     <div className="trade-history">
+      <Navbar />
       <div className="history-header">
         <h1>Trade History</h1>
         <div className="days-selector">

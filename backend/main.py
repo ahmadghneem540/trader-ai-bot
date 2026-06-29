@@ -8,11 +8,12 @@ from contextlib import asynccontextmanager
 from app.core.config.settings import settings
 from app.core.logging.logger import setup_logging, get_logger
 from app.core.scheduler import get_scheduler
-from app.core.database.session import SessionLocal
+from app.core.database.session import SessionLocal, Base
 from app.infrastructure.database.repositories import SymbolRepository
 from app.infrastructure.mt5.connector import get_mt5_connector
-from app.api.routes import health, symbols, market_data, trading, auth, websockets, strategy, backtest, mt5
+from app.api.routes import health, symbols, market_data, trading, auth, websockets, strategy, backtest, mt5, ai
 from app.application.services.strategy_runner import strategy_runner
+from app.domain.models import User, Account, Symbol, Candle, Order, Position, Backtest, AccountSnapshot, LogEntry, NewsEvent, RiskLimit, Signal, StrategyConfig, Tick
 
 setup_logging()
 logger = get_logger(__name__)
@@ -20,6 +21,10 @@ logger = get_logger(__name__)
 
 def init_default_data():
     """Initialize default data in the database"""
+    # Create all tables
+    from app.core.database.session import engine
+    Base.metadata.create_all(bind=engine)
+    
     db = SessionLocal()
     try:
         # Check if symbols exist
@@ -57,10 +62,7 @@ async def lifespan(app: FastAPI):
     
     mt5_connector = get_mt5_connector()
     scheduler = get_scheduler()
-    try:
-        mt5_connector.connect()
-    except Exception as e:
-        logger.warning(f"Failed to connect to MT5 on startup: {str(e)}")
+    
     scheduler.start()
 
     # Add auto trading jobs - M15 and H1
@@ -123,6 +125,7 @@ app.include_router(websockets.router, prefix="/api/v1")
 app.include_router(strategy.router, prefix="/api/v1")
 app.include_router(backtest.router, prefix="/api/v1/backtest")
 app.include_router(mt5.router, prefix="/api/v1")
+app.include_router(ai.router, prefix="/api/v1")
 
 
 @app.get("/")

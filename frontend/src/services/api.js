@@ -183,6 +183,11 @@ export const getMT5Status = async () => {
   return unwrapResponse(response);
 };
 
+export const getMT5DetailedStatus = async () => {
+  const response = await api.get('/mt5/detailed-status');
+  return unwrapResponse(response);
+};
+
 export const getMT5Account = async () => {
   const response = await api.get('/mt5/account');
   return unwrapResponse(response);
@@ -244,8 +249,14 @@ export const getMT5Debug = async () => {
 };
 
 export const getMT5DebugLogs = async () => {
-  const response = await api.get('/mt5/debug/logs');
-  return unwrapResponse(response);
+    const response = await api.get('/mt5/debug/logs');
+    return unwrapResponse(response);
+};
+
+// AI Auto Trade
+export const aiAutoTrade = async (volume, sl, tp, symbol = "XAUUSD", timeframe = "H1") => {
+    const response = await api.post('/ai/auto-trade', { volume, sl, tp }, { params: { symbol, timeframe } });
+    return response.data;
 };
 
 export default api;

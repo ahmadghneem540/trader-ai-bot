@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { useMT5 } from '../context/MT5Context';
 import {
   getMT5Account, getMT5Positions, getMT5Orders, getMT5Symbols, getMT5Tick
@@ -9,9 +7,7 @@ import Navbar from '../components/Navbar';
 import './Dashboard.css';
 
 const Dashboard = () => {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
-  const { isConnected, accountInfo: mt5AccountInfo, checkConnection } = useMT5();
+  const { isConnected, isFullyConnected, accountInfo: mt5AccountInfo, checkConnection, connectionStatus } = useMT5();
   const [activeTab, setActiveTab] = useState('overview');
   const [accountInfo, setAccountInfo] = useState(null);
   const [positions, setPositions] = useState([]);
@@ -19,16 +15,18 @@ const Dashboard = () => {
   const [symbols, setSymbols] = useState([]);
   const [currentTick, setCurrentTick] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [connectionError, setConnectionError] = useState(null);
 
   useEffect(() => {
     fetchData();
     const interval = setInterval(fetchData, 3000);
     return () => clearInterval(interval);
-  }, [isConnected]);
+  }, [isConnected, isFullyConnected]);
 
   const fetchData = async () => {
     try {
-      if (isConnected) {
+      // Only fetch data if fully connected (symbol ready and candles retrievable)
+      if (isFullyConnected()) {
         const account = await getMT5Account();
         setAccountInfo(account);
 
@@ -44,10 +42,23 @@ const Dashboard = () => {
         try {
           const tick = await getMT5Tick('XAUUSD');
           setCurrentTick(tick);
+          setConnectionError(null);
         } catch {}
+      } else {
+        // Not fully connected, show connection status
+        if (connectionStatus.last_error) {
+          setConnectionError(connectionStatus.last_error);
+        } else if (!connectionStatus.connected) {
+          setConnectionError('Not connected to MT5');
+        } else if (!connectionStatus.symbol_ready) {
+          setConnectionError('Symbol XAUUSD not available');
+        } else if (!connectionStatus.candles_ready) {
+          setConnectionError('Cannot retrieve market data');
+        }
       }
     } catch (error) {
       console.error('Error fetching data:', error);
+      setConnectionError(error.message);
     } finally {
       setLoading(false);
     }
@@ -99,17 +110,34 @@ const Dashboard = () => {
 
         {activeTab === 'overview' && (
           <div className="overview-section">
+            {connectionError && (
+              <div className="connection-error">
+                <h3>Connection Issue</h3>
+                <p>{connectionError}</p>
+                <div className="connection-details">
+                  <p><strong>Terminal:</strong> {connectionStatus.terminal || 'Not available'}</p>
+                  <p><strong>Account:</strong> {connectionStatus.account || 'Not available'}</p>
+                  <p><strong>Server:</strong> {connectionStatus.server || 'Not available'}</p>
+                  <p><strong>Symbol Ready:</strong> {connectionStatus.symbol_ready ? 'Yes' : 'No'}</p>
+                  <p><strong>Candles Ready:</strong> {connectionStatus.candles_ready ? 'Yes' : 'No'}</p>
+                </div>
+              </div>
+            )}
+            
             <div className="stats-grid">
               <div className="stat-card">
                 <h3>MT5 Status</h3>
-                <div className={`status-indicator ${isConnected ? 'connected' : 'disconnected'}`}>
+                <div className={`status-indicator ${isFullyConnected() ? 'connected' : 'disconnected'}`}>
                   <span className="status-dot"></span>
-                  {isConnected ? 'Connected' : 'Disconnected'}
+                  {isFullyConnected() ? 'Fully Connected' : 'Partially Connected'}
                 </div>
-                {isConnected && accountInfo && (
-                  <div className="account-details">
-                    <p>Login: {accountInfo.login}</p>
-                    <p>Server: {accountInfo.server}</p>
+                {connectionStatus.connected && (
+                  <div className="connection-details">
+                    <p><strong>Terminal:</strong> {connectionStatus.terminal || 'Unknown'}</p>
+                    <p><strong>Account:</strong> {connectionStatus.account || 'Unknown'}</p>
+                    <p><strong>Server:</strong> {connectionStatus.server || 'Unknown'}</p>
+                    <p><strong>Symbol Ready:</strong> {connectionStatus.symbol_ready ? 'Yes' : 'No'}</p>
+                    <p><strong>Candles Ready:</strong> {connectionStatus.candles_ready ? 'Yes' : 'No'}</p>
                   </div>
                 )}
               </div>

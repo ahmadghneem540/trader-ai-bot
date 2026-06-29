@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { getBacktestById, getBacktestTrades } from '../services/api';
+import Navbar from '../components/Navbar';
 
 const BacktestResults = () => {
   const { backtestId } = useParams();
@@ -31,6 +32,7 @@ const BacktestResults = () => {
   if (loading) {
     return (
       <div className="container">
+        <Navbar />
         <h1 className="page-title">Loading...</h1>
       </div>
     );
@@ -39,6 +41,7 @@ const BacktestResults = () => {
   if (!backtest) {
     return (
       <div className="container">
+        <Navbar />
         <h1 className="page-title">Backtest Not Found</h1>
         <button className="btn btn-secondary" onClick={() => navigate('/strategy-tester')}>
           Back to Tester
@@ -49,6 +52,7 @@ const BacktestResults = () => {
 
   return (
     <div className="container">
+      <Navbar />
       <button className="btn btn-secondary" onClick={() => navigate('/strategy-tester')} style={{ marginBottom: '20px' }}>
         ← Back to Strategy Tester
       </button>

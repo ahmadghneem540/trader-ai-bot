@@ -150,3 +150,48 @@
   background: #ffd700;
   color: #000;
 }
+
+.btn-ai-trade {
+  width: 100%;
+  padding: 1rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: bold;
+  cursor: pointer;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  margin-bottom: 1rem;
+  transition: all 0.3s;
+}
+
+.btn-ai-trade:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+}
+
+.btn-ai-trade:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.ai-analysis {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #1a1a2e;
+  border-radius: 6px;
+  border: 1px solid #667eea;
+}
+
+.ai-analysis h4 {
+  color: #667eea;
+  margin-bottom: 0.75rem;
+}
+
+.ai-analysis p {
+  color: #ccc;
+  font-size: 0.875rem;
+  margin: 0.25rem 0;
+}

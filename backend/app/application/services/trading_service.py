@@ -1,4 +1,3 @@
-import MetaTrader5 as mt5
 from typing import Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -31,14 +30,47 @@ class TradingService:
         tp: Optional[float] = None,
         comment: str = ""
     ) -> Optional[Order]:
-        return self._open_order(
-            symbol_name=symbol_name,
-            action=mt5.ORDER_TYPE_BUY,
-            volume=volume,
-            sl=sl,
-            tp=tp,
-            comment=comment
-        )
+        if not self.mt5_connector.is_connected():
+            logger.error("MT5 not connected, cannot open order")
+            return None
+
+        symbol = self.symbol_repo.get_by_name(symbol_name)
+        if not symbol:
+            logger.error(f"Symbol {symbol_name} not found")
+            return None
+
+        # Use mt5_connector to open buy order
+        result = self.mt5_connector.open_buy_order(symbol_name, volume, sl, tp)
+        if not result or (hasattr(result, 'retcode') and result.retcode != 10009):  # TRADE_RETCODE_DONE is 10009
+            logger.error("Order failed")
+            return None
+
+        # Save order to DB
+        order_ticket = result.order if hasattr(result, 'order') else None
+        if not order_ticket:
+            return None
+
+        tick = self.mt5_connector.get_tick(symbol_name)
+        price = tick.get("ask") if tick else 0.0
+
+        order_data = {
+            "mt5_ticket": order_ticket,
+            "account_id": 1,  # TODO: Replace with real account
+            "symbol_id": symbol.id,
+            "order_type": "MARKET",
+            "action": "BUY",
+            "volume": volume,
+            "price": price,
+            "sl": sl,
+            "tp": tp,
+            "status": "FILLED",
+            "comment": comment
+        }
+        db_order = self.order_repo.create(order_data)
+
+        # Check if position opened
+        self._sync_position_after_order(order_ticket)
+        return db_order
 
     def open_sell_order(
         self,
@@ -47,24 +79,6 @@ class TradingService:
         sl: Optional[float] = None,
         tp: Optional[float] = None,
         comment: str = ""
-    ) -> Optional[Order]:
-        return self._open_order(
-            symbol_name=symbol_name,
-            action=mt5.ORDER_TYPE_SELL,
-            volume=volume,
-            sl=sl,
-            tp=tp,
-            comment=comment
-        )
-
-    def _open_order(
-        self,
-        symbol_name: str,
-        action: int,
-        volume: float,
-        sl: Optional[float],
-        tp: Optional[float],
-        comment: str
     ) -> Optional[Order]:
         if not self.mt5_connector.is_connected():
             logger.error("MT5 not connected, cannot open order")
@@ -75,34 +89,27 @@ class TradingService:
             logger.error(f"Symbol {symbol_name} not found")
             return None
 
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": symbol_name,
-            "volume": volume,
-            "type": action,
-            "price": mt5.symbol_info_tick(symbol_name).ask if action == mt5.ORDER_TYPE_BUY else mt5.symbol_info_tick(symbol_name).bid,
-            "sl": sl,
-            "tp": tp,
-            "deviation": 10,
-            "magic": 234000,
-            "comment": comment,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
-
-        result = mt5.order_send(request)
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            logger.error(f"Order failed, retcode={result.retcode}")
+        # Use mt5_connector to open sell order
+        result = self.mt5_connector.open_sell_order(symbol_name, volume, sl, tp)
+        if not result or (hasattr(result, 'retcode') and result.retcode != 10009):
+            logger.error("Order failed")
             return None
 
-        # Save order to DB
+        order_ticket = result.order if hasattr(result, 'order') else None
+        if not order_ticket:
+            return None
+
+        tick = self.mt5_connector.get_tick(symbol_name)
+        price = tick.get("bid") if tick else 0.0
+
         order_data = {
-            "mt5_ticket": result.order,
-            "account_id": 1,  # TODO: Replace with real account
+            "mt5_ticket": order_ticket,
+            "account_id": 1,
             "symbol_id": symbol.id,
             "order_type": "MARKET",
-            "action": "BUY" if action == mt5.ORDER_TYPE_BUY else "SELL",
+            "action": "SELL",
             "volume": volume,
-            "price": request["price"],
+            "price": price,
             "sl": sl,
             "tp": tp,
             "status": "FILLED",
@@ -110,8 +117,7 @@ class TradingService:
         }
         db_order = self.order_repo.create(order_data)
 
-        # Check if position opened
-        self._sync_position_after_order(result.order)
+        self._sync_position_after_order(order_ticket)
         return db_order
 
     def close_position(
@@ -123,30 +129,10 @@ class TradingService:
             logger.error("MT5 not connected, cannot close position")
             return None
 
-        position = mt5.positions_get(ticket=mt5_ticket)
-        if not position:
-            logger.error(f"Position {mt5_ticket} not found")
-            return None
-
-        pos = position[0]
-        close_action = mt5.ORDER_TYPE_SELL if pos.type == mt5.POSITION_TYPE_BUY else mt5.ORDER_TYPE_BUY
-
-        request = {
-            "action": mt5.TRADE_ACTION_DEAL,
-            "symbol": pos.symbol,
-            "volume": pos.volume,
-            "type": close_action,
-            "position": pos.ticket,
-            "price": mt5.symbol_info_tick(pos.symbol).bid if close_action == mt5.ORDER_TYPE_SELL else mt5.symbol_info_tick(pos.symbol).ask,
-            "deviation": 10,
-            "magic": 234000,
-            "comment": comment,
-            "type_filling": mt5.ORDER_FILLING_IOC,
-        }
-
-        result = mt5.order_send(request)
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            logger.error(f"Close position failed, retcode={result.retcode}")
+        # Use mt5_connector to close position
+        result = self.mt5_connector.close_position(mt5_ticket)
+        if not result or (hasattr(result, 'retcode') and result.retcode != 10009):
+            logger.error("Close position failed")
             return None
 
         # Update DB position
@@ -165,60 +151,37 @@ class TradingService:
         sl: Optional[float] = None,
         tp: Optional[float] = None
     ) -> Optional[Position]:
-        if not self.mt5_connector.is_connected():
-            logger.error("MT5 not connected, cannot modify position")
-            return None
-
-        position = mt5.positions_get(ticket=mt5_ticket)
-        if not position:
-            logger.error(f"Position {mt5_ticket} not found")
-            return None
-
-        pos = position[0]
-        request = {
-            "action": mt5.TRADE_ACTION_SLTP,
-            "symbol": pos.symbol,
-            "position": pos.ticket,
-            "sl": sl if sl is not None else pos.sl,
-            "tp": tp if tp is not None else pos.tp,
-        }
-
-        result = mt5.order_send(request)
-        if result.retcode != mt5.TRADE_RETCODE_DONE:
-            logger.error(f"Modify SL/TP failed, retcode={result.retcode}")
-            return None
-
-        db_position = self.position_repo.get_by_mt5_ticket(mt5_ticket)
-        if db_position:
-            self.position_repo.update(db_position, {"sl": sl, "tp": tp})
-        return db_position
+        # TODO: Add modify_sl_tp method to mt5_connector if needed
+        logger.warning("modify_sl_tp not yet implemented via mt5_connector")
+        return None
 
     def _sync_position_after_order(self, order_ticket: int):
         # Wait a bit for position to open
         import time
         time.sleep(0.5)
 
-        positions = mt5.positions_get()
+        # Use mt5_connector to get positions
+        positions = self.mt5_connector.get_open_positions()
         for pos in positions:
-            db_position = self.position_repo.get_by_mt5_ticket(pos.ticket)
-            symbol = self.symbol_repo.get_by_name(pos.symbol)
+            db_position = self.position_repo.get_by_mt5_ticket(pos.get("ticket"))
+            symbol = self.symbol_repo.get_by_name(pos.get("symbol"))
             if not symbol:
                 continue
 
             position_data = {
-                "mt5_ticket": pos.ticket,
+                "mt5_ticket": pos.get("ticket"),
                 "account_id": 1,
                 "symbol_id": symbol.id,
                 "order_id": None,
-                "position_type": "BUY" if pos.type == mt5.POSITION_TYPE_BUY else "SELL",
-                "volume": pos.volume,
-                "open_price": pos.price_open,
-                "open_time": datetime.fromtimestamp(pos.time),
-                "sl": pos.sl,
-                "tp": pos.tp,
-                "current_price": pos.price_current,
-                "swap": pos.swap,
-                "profit": pos.profit,
+                "position_type": pos.get("type", "BUY"),
+                "volume": pos.get("volume"),
+                "open_price": pos.get("open_price"),
+                "open_time": datetime.fromtimestamp(pos.get("time")) if pos.get("time") else datetime.now(),
+                "sl": pos.get("sl"),
+                "tp": pos.get("tp"),
+                "current_price": pos.get("current_price"),
+                "swap": pos.get("swap"),
+                "profit": pos.get("profit"),
                 "is_open": True
             }
 
@@ -232,9 +195,9 @@ class TradingService:
             logger.error("MT5 not connected")
             return
 
-        positions = mt5.positions_get()
+        positions = self.mt5_connector.get_open_positions()
         if not positions:
             return
 
         for pos in positions:
-            self._sync_position_after_order(pos.ticket)
+            self._sync_position_after_order(pos.get("ticket"))

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getMT5Positions, closeMT5Position } from '../services/api';
+import Navbar from '../components/Navbar';
 import './OpenPositions.css';
 
 function OpenPositions() {
@@ -37,6 +38,7 @@ function OpenPositions() {
 
   return (
     <div className="open-positions">
+      <Navbar />
       <h1>Open Positions</h1>
       
       {positions.length === 0 ? (

@@ -1,9 +1,11 @@
 import React from 'react';
+import Navbar from '../components/Navbar';
 import './Logs.css';
 
 function Logs() {
   return (
     <div className="logs">
+      <Navbar />
       <h1>Logs</h1>
       <div className="logs-container">
         <div className="logs-card">

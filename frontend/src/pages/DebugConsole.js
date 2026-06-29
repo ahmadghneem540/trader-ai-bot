@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { getMT5Debug, getMT5DebugLogs } from '../services/api';
+import Navbar from '../components/Navbar';
 import './DebugConsole.css';
 
 function DebugConsole() {
@@ -12,11 +13,12 @@ function DebugConsole() {
     const fetchData = async () => {
       try {
         const debugData = await getMT5Debug();
-        setDebugInfo(debugData.debug_info);
+        setDebugInfo(debugData?.debug_info || null);
         const logsData = await getMT5DebugLogs();
-        setLogs(logsData.data);
+        setLogs(logsData || []);
       } catch (error) {
         console.error('Failed to fetch debug data:', error);
+        setLogs([]);
       }
     };
 
@@ -66,6 +68,7 @@ function DebugConsole() {
 
   return (
     <div className="debug-console">
+      <Navbar />
       <h1>Debug Console</h1>
 
       {debugInfo && (

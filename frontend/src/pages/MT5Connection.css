@@ -49,7 +49,8 @@
 
 .btn-primary,
 .btn-secondary,
-.btn-danger {
+.btn-danger,
+.btn-auto-trade {
   flex: 1;
   padding: 1rem;
   border: none;
@@ -57,12 +58,13 @@
   font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
-  transition: opacity 0.3s;
+  transition: all 0.3s;
 }
 
 .btn-primary:disabled,
 .btn-secondary:disabled,
-.btn-danger:disabled {
+.btn-danger:disabled,
+.btn-auto-trade:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -83,6 +85,17 @@
   margin-top: 1.5rem;
   background: #ff6b6b;
   color: #fff;
+}
+
+.btn-auto-trade {
+  width: 100%;
+  margin-top: 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+}
+
+.btn-auto-trade.active {
+  background: linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%);
 }
 
 .account-info {
@@ -125,4 +138,119 @@
 
 .detail-value.status-online {
   color: #4ecdc4;
+}
+
+.auto-trade-section {
+  text-align: left;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: #1a1a2e;
+  border-radius: 6px;
+  border: 1px solid #333;
+}
+
+.auto-trade-section h3 {
+  color: #667eea;
+  margin: 0 0 1rem 0;
+}
+
+.auto-trade-status {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  color: #4ecdc4;
+  font-weight: 500;
+}
+
+.auto-trade-status .status-dot {
+  width: 10px;
+  height: 10px;
+  background: #4ecdc4;
+  border-radius: 50%;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.logs-section {
+  margin-top: 2rem;
+  max-width: 800px;
+}
+
+.logs-section h3 {
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.logs-container {
+  background: #16213e;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 1rem;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.no-logs {
+  color: #888;
+  text-align: center;
+  margin: 0;
+}
+
+.log-entry {
+  padding: 0.5rem 0;
+  border-bottom: 1px solid #333;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.log-entry:last-child {
+  border-bottom: none;
+}
+
+.log-timestamp {
+  color: #888;
+  margin-right: 0.5rem;
+}
+
+.log-step {
+  color: #667eea;
+  margin-right: 0.5rem;
+}
+
+.log-function {
+  color: #4ecdc4;
+  margin-right: 0.5rem;
+}
+
+.log-message {
+  color: #fff;
+}
+
+.log-info .log-message {
+  color: #fff;
+}
+
+.log-success .log-message {
+  color: #4ecdc4;
+}
+
+.log-warning .log-message {
+  color: #ffd700;
+}
+
+.log-error .log-message {
+  color: #ff6b6b;
+}
+
+.log-critical .log-message {
+  color: #ff0000;
 }

@@ -6,6 +6,7 @@ from app.infrastructure.mt5.connector import get_mt5_connector, MT5Connector
 from app.api.schemas.schemas import (
     MT5ConnectRequest,
     MT5ConnectionStatus,
+    MT5StatusResponse,
     MT5AccountInfo,
     OpenPosition,
     TradeHistoryResponse,
@@ -85,18 +86,14 @@ def disconnect_from_mt5(mt5_connector: MT5Connector = Depends(get_mt5_connector)
         )
 
 
-@router.get("/status", response_model=GenericResponse[dict])
+@router.get("/status", response_model=GenericResponse[MT5StatusResponse])
 def get_connection_status(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        is_connected = mt5_connector.is_connected()
-        account_info = mt5_connector.get_account_info() if is_connected else None
+        status = mt5_connector.get_detailed_status()
         return GenericResponse(
             success=True,
             message="Connection status retrieved successfully",
-            data={
-                "connected": is_connected,
-                "account_info": account_info
-            },
+            data=status,
             error=None
         )
     except Exception as e:
@@ -115,10 +112,37 @@ def get_connection_status(mt5_connector: MT5Connector = Depends(get_mt5_connecto
         )
 
 
-@router.get("/account", response_model=GenericResponse[MT5AccountInfo])
-def get_account_info(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
+@router.get("/detailed-status", response_model=GenericResponse[dict])
+def get_detailed_connection_status(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        status = mt5_connector.get_detailed_status()
+        return GenericResponse(
+            success=True,
+            message="Detailed connection status retrieved successfully",
+            data=status,
+            error=None
+        )
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        mt5_errors_logger.error(f"get_detailed_connection_status exception: {str(e)}\n{error_traceback}")
+        return GenericResponse(
+            success=False,
+            message="Internal server error",
+            data=None,
+            error=ErrorInfo(
+                stage="api",
+                error=str(e),
+                mt5_last_error=None,
+                traceback=error_traceback
+            )
+        )
+
+
+@router.get("/account", response_model=GenericResponse[dict])
+def get_account(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
+    try:
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -178,10 +202,11 @@ def get_account_info(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
         )
 
 
-@router.get("/positions", response_model=GenericResponse[List[OpenPosition]])
-def get_open_positions(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
+@router.get("/positions", response_model=GenericResponse[List[dict]])
+def get_positions(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -237,10 +262,11 @@ def get_open_positions(mt5_connector: MT5Connector = Depends(get_mt5_connector))
         )
 
 
-@router.get("/history", response_model=GenericResponse[TradeHistoryResponse])
-def get_trade_history(days: int = 30, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
+@router.get("/history", response_model=GenericResponse[List[dict]])
+def get_history(days: int = 30, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -323,8 +349,55 @@ def get_trade_history(days: int = 30, mt5_connector: MT5Connector = Depends(get_
 
 @router.get("/candles/{symbol}/{timeframe}", response_model=GenericResponse[List[dict]])
 def get_candles(symbol: str, timeframe: str, count: int = 500, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
+    print(f"[Backend] Received candle request for {symbol} {timeframe} count={count}")
+    print(f"[Backend] MT5 connected: {mt5_connector.is_connected()}")
     try:
-        if not mt5_connector.is_connected():
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            print("[Backend] Demo mode: generating dummy candles")
+            import time
+            import random
+            now = int(time.time())
+            # Timeframe duration in seconds
+            timeframe_seconds = {
+                "M1": 60,
+                "M5": 300,
+                "M15": 900,
+                "M30": 1800,
+                "H1": 3600,
+                "H4": 14400,
+                "D1": 86400
+            }
+            dt = timeframe_seconds.get(timeframe, 3600)  # Default to H1
+            formatted_candles = []
+            current_price = 3000
+            for i in range(count - 1, -1, -1):
+                t = now - (i * dt)
+                # Random price movement
+                change = random.uniform(-5, 5)
+                open_price = current_price
+                close_price = open_price + change
+                high_price = max(open_price, close_price) + random.uniform(0, 2)
+                low_price = min(open_price, close_price) - random.uniform(0, 2)
+                formatted_candles.append({
+                    "time": t,
+                    "open": round(open_price, 2),
+                    "high": round(high_price, 2),
+                    "low": round(low_price, 2),
+                    "close": round(close_price, 2)
+                })
+                current_price = close_price
+            print(f"[Backend] Demo mode: returning {len(formatted_candles)} dummy candles")
+            return GenericResponse(
+                success=True,
+                message="Candles retrieved successfully",
+                data=formatted_candles,
+                error=None
+            )
+
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
+            print("[Backend] MT5 not connected, returning error")
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -337,8 +410,11 @@ def get_candles(symbol: str, timeframe: str, count: int = 500, mt5_connector: MT
                 )
             )
 
+        print("[Backend] Calling mt5_connector.get_candles")
         candles = mt5_connector.get_candles(symbol, timeframe, count)
+        print(f"[Backend] Received candles from connector: {candles}")
         if candles is None:
+            print("[Backend] No candles received from connector")
             return GenericResponse(
                 success=False,
                 message="Failed to get candles",
@@ -351,10 +427,25 @@ def get_candles(symbol: str, timeframe: str, count: int = 500, mt5_connector: MT
                 )
             )
 
+        print(f"[Backend] Number of candles received: {len(candles)}")
+        # Format candles to only include necessary fields for lightweight-charts
+        formatted_candles = [
+            {
+                "time": candle["time"],
+                "open": candle["open"],
+                "high": candle["high"],
+                "low": candle["low"],
+                "close": candle["close"]
+            }
+            for candle in candles
+        ]
+        print(f"[Backend] Formatted candles: {formatted_candles}")
+
+        print(f"[Backend] Returning {len(formatted_candles)} formatted candles")
         return GenericResponse(
             success=True,
             message="Candles retrieved successfully",
-            data=candles,
+            data=formatted_candles,
             error=None
         )
     except Exception as e:
@@ -373,10 +464,11 @@ def get_candles(symbol: str, timeframe: str, count: int = 500, mt5_connector: MT
         )
 
 
-@router.get("/symbols", response_model=GenericResponse[List[dict]])
+@router.get("/symbols", response_model=GenericResponse[List[str]])
 def get_symbols(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -415,7 +507,8 @@ def get_symbols(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
 @router.get("/orders", response_model=GenericResponse[List[dict]])
 def get_orders(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -451,10 +544,80 @@ def get_orders(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
         )
 
 
+@router.get("/positions", response_model=GenericResponse[List[dict]])
+def get_positions(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
+    try:
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            positions = mt5_connector.get_positions()
+            return GenericResponse(
+                success=True,
+                message="Positions retrieved successfully",
+                data=positions,
+                error=None
+            )
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
+            return GenericResponse(
+                success=False,
+                message="MT5 not connected",
+                data=None,
+                error=ErrorInfo(
+                    stage="connection",
+                    error="MT5 not connected",
+                    mt5_last_error=None,
+                    traceback=None
+                )
+            )
+        positions = mt5_connector.get_positions()
+        return GenericResponse(
+            success=True,
+            message="Positions retrieved successfully",
+            data=positions,
+            error=None
+        )
+    except Exception as e:
+        error_traceback = traceback.format_exc()
+        mt5_errors_logger.error(f"get_positions exception: {str(e)}\n{error_traceback}")
+        return GenericResponse(
+            success=False,
+            message="Internal server error",
+            data=None,
+            error=ErrorInfo(
+                stage="api",
+                error=str(e),
+                mt5_last_error=None,
+                traceback=error_traceback
+            )
+        )
+
+
 @router.get("/tick/{symbol}", response_model=GenericResponse[dict])
 def get_tick(symbol: str, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            import time
+            import random
+            base_price = 3000
+            demo_tick = {
+                "time": int(time.time()),
+                "bid": base_price + random.uniform(-5, 5),
+                "ask": base_price + random.uniform(-4.5, 5.5),
+                "last": base_price + random.uniform(-4.7, 5.3),
+                "volume": random.randint(1, 100),
+                "time_msc": int(time.time() * 1000),
+                "flags": 0,
+                "volume_real": random.uniform(0.1, 10.0),
+            }
+            return GenericResponse(
+                success=True,
+                message="Tick data retrieved successfully",
+                data=demo_tick,
+                error=None
+            )
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -506,7 +669,30 @@ def get_tick(symbol: str, mt5_connector: MT5Connector = Depends(get_mt5_connecto
 @router.post("/trade/buy", response_model=GenericResponse[dict])
 def open_buy_position(request: TradingPanelRequest, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            result = mt5_connector.open_buy_order("XAUUSD", request.volume, request.sl, request.tp)
+            if not result or result.retcode != 10009:
+                error_msg = result.comment if hasattr(result, 'comment') else "Unknown error"
+                return GenericResponse(
+                    success=False,
+                    message="Failed to open buy position",
+                    data=None,
+                    error=ErrorInfo(
+                        stage="trade",
+                        error=error_msg,
+                        mt5_last_error=getattr(result, 'retcode', None) if hasattr(result, 'retcode') else None,
+                        traceback=None
+                    )
+                )
+            return GenericResponse(
+                success=True,
+                message="Buy position opened successfully",
+                data={"ticket": result.order},
+                error=None
+            )
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -560,7 +746,30 @@ def open_buy_position(request: TradingPanelRequest, mt5_connector: MT5Connector 
 @router.post("/trade/sell", response_model=GenericResponse[dict])
 def open_sell_position(request: TradingPanelRequest, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            result = mt5_connector.open_sell_order("XAUUSD", request.volume, request.sl, request.tp)
+            if not result or result.retcode != 10009:
+                error_msg = result.comment if hasattr(result, 'comment') else "Unknown error"
+                return GenericResponse(
+                    success=False,
+                    message="Failed to open sell position",
+                    data=None,
+                    error=ErrorInfo(
+                        stage="trade",
+                        error=error_msg,
+                        mt5_last_error=getattr(result, 'retcode', None) if hasattr(result, 'retcode') else None,
+                        traceback=None
+                    )
+                )
+            return GenericResponse(
+                success=True,
+                message="Sell position opened successfully",
+                data={"ticket": result.order},
+                error=None
+            )
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -614,7 +823,30 @@ def open_sell_position(request: TradingPanelRequest, mt5_connector: MT5Connector
 @router.post("/trade/close/{ticket}", response_model=GenericResponse[dict])
 def close_position(ticket: int, mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            result = mt5_connector.close_position(ticket)
+            if not result or result.retcode != 10009:
+                error_msg = result.comment if hasattr(result, 'comment') else "Unknown error"
+                return GenericResponse(
+                    success=False,
+                    message="Failed to close position",
+                    data=None,
+                    error=ErrorInfo(
+                        stage="trade",
+                        error=error_msg,
+                        mt5_last_error=getattr(result, 'retcode', None) if hasattr(result, 'retcode') else None,
+                        traceback=None
+                    )
+                )
+            return GenericResponse(
+                success=True,
+                message="Position closed successfully",
+                data={"ticket": ticket},
+                error=None
+            )
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",
@@ -668,7 +900,17 @@ def close_position(ticket: int, mt5_connector: MT5Connector = Depends(get_mt5_co
 @router.post("/trade/close-all", response_model=GenericResponse[dict])
 def close_all_positions(mt5_connector: MT5Connector = Depends(get_mt5_connector)):
     try:
-        if not mt5_connector.is_connected():
+        # Check if in demo mode
+        if hasattr(mt5_connector, "_demo_mode") and mt5_connector._demo_mode:
+            results = mt5_connector.close_all_positions()
+            return GenericResponse(
+                success=True,
+                message="All positions closed",
+                data={"results_count": len(results), "results": results},
+                error=None
+            )
+        # Try to ensure connection first
+        if not mt5_connector._ensure_connection():
             return GenericResponse(
                 success=False,
                 message="MT5 not connected",

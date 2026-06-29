@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { listStrategies, getSymbols, runBacktest, getBacktestResults } from '../services/api';
+import Navbar from '../components/Navbar';
 
 const StrategyTester = () => {
   const navigate = useNavigate();
@@ -57,6 +58,7 @@ const StrategyTester = () => {
 
   return (
     <div className="container">
+      <Navbar />
       <h1 className="page-title">Strategy Tester</h1>
 
       <div className="card" style={{ marginBottom: '20px' }}>

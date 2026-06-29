@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { getStrategyConfig, updateStrategyConfig, botControl } from '../services/api';
+import Navbar from '../components/Navbar';
 import './StrategySettings.css';
 
 function StrategySettings() {
@@ -57,6 +58,7 @@ function StrategySettings() {
 
   return (
     <div className="strategy-settings">
+      <Navbar />
       <h1>Strategy Settings</h1>
       
       {/* Bot Control Section */}
@@ -112,6 +114,7 @@ function StrategySettings() {
               onChange={handleChange}
             >
               <option value="EMATrendStrategy">EMA Trend Strategy</option>
+              <option value="AIStrategy">AI Powered Strategy (Gemini)</option>
               <option value="GoldAutonomousStrategy">Gold Autonomous Strategy</option>
             </select>
           </div>

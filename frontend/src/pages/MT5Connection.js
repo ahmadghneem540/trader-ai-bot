@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { connectMT5, disconnectMT5 } from '../services/api';
+import React, { useState, useEffect } from 'react';
+import { connectMT5, disconnectMT5, getMT5DebugLogs } from '../services/api';
 import { useMT5 } from '../context/MT5Context';
+import Navbar from '../components/Navbar';
 import './MT5Connection.css';
 
 function MT5Connection() {
@@ -9,11 +10,31 @@ function MT5Connection() {
     accountInfo,
     setIsConnected,
     setAccountInfo,
+    isAutoTrading,
+    autoTradeVolume,
+    setAutoTradeVolume,
+    toggleAutoTrade,
   } = useMT5();
-  const [login, setLogin] = useState('108891758');
-  const [password, setPassword] = useState('TcM!5aVt');
+  const [login, setLogin] = useState('108894781');
+  const [password, setPassword] = useState('Hf_4lkls');
   const [server, setServer] = useState('MetaQuotes-Demo');
   const [isLoading, setIsLoading] = useState(false);
+  const [logs, setLogs] = useState([]);
+
+  const fetchLogs = async () => {
+    try {
+      const logsData = await getMT5DebugLogs();
+      setLogs(logsData);
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+    const interval = setInterval(fetchLogs, 2000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleConnect = async (e) => {
     e.preventDefault();
@@ -25,10 +46,12 @@ function MT5Connection() {
         setAccountInfo(result.debug_info?.account_info);
         alert('Connected successfully!');
       }
+      fetchLogs(); // Fetch logs right after connect attempt
     } catch (error) {
       console.error('Connection failed:', error);
       const errorDetail = error.response?.data?.detail || error.message;
       alert('Connection failed: ' + errorDetail);
+      fetchLogs(); // Fetch logs even if connection failed
     } finally {
       setIsLoading(false);
     }
@@ -41,6 +64,7 @@ function MT5Connection() {
       setIsConnected(false);
       setAccountInfo(null);
       alert('Disconnected successfully!');
+      fetchLogs(); // Fetch logs after disconnect
     } catch (error) {
       console.error('Disconnect failed:', error);
     } finally {
@@ -59,10 +83,12 @@ function MT5Connection() {
         setIsConnected(false);
         setAccountInfo(null);
       }
+      fetchLogs(); // Fetch logs after test connection
     } catch (error) {
       console.error('Test connection failed:', error);
       const errorDetail = error.response?.data?.detail || error.message;
       alert('Test connection failed: ' + errorDetail);
+      fetchLogs(); // Fetch logs even if test connection failed
     } finally {
       setIsLoading(false);
     }
@@ -70,6 +96,7 @@ function MT5Connection() {
 
   return (
     <div className="mt5-connection">
+      <Navbar />
       <h1>MT5 Connection</h1>
       
       <div className="connection-container">
@@ -157,6 +184,33 @@ function MT5Connection() {
                 </div>
               </div>
             )}
+
+            <div className="auto-trade-section">
+              <h3>AI Auto-Trading</h3>
+              <div className="form-group">
+                <label>Auto-Trade Volume</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  value={autoTradeVolume}
+                  onChange={(e) => setAutoTradeVolume(parseFloat(e.target.value))}
+                  disabled={isAutoTrading}
+                />
+              </div>
+              <button 
+                onClick={toggleAutoTrade}
+                className={`btn-auto-trade ${isAutoTrading ? 'active' : ''}`}
+              >
+                {isAutoTrading ? 'Stop Auto-Trading' : 'Start Auto-Trading'}
+              </button>
+              {isAutoTrading && (
+                <div className="auto-trade-status">
+                  <span className="status-dot"></span>
+                  Auto-Trading Active (every 5 minutes)
+                </div>
+              )}
+            </div>
             
             <button 
               onClick={handleDisconnect} 
@@ -167,6 +221,24 @@ function MT5Connection() {
             </button>
           </div>
         )}
+      </div>
+
+      <div className="logs-section">
+        <h3>Connection Logs</h3>
+        <div className="logs-container">
+          {logs.length === 0 ? (
+            <p className="no-logs">No logs available yet</p>
+          ) : (
+            logs.map((log, index) => (
+              <div key={index} className={`log-entry log-${log.level.toLowerCase()}`}>
+                <span className="log-timestamp">{new Date(log.timestamp).toLocaleTimeString()}</span>
+                <span className="log-step">[Step {log.step}]</span>
+                <span className="log-function">{log.function}</span>
+                <span className="log-message">{log.description}</span>
+              </div>
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

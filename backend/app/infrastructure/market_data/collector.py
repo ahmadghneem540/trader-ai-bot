@@ -1,4 +1,3 @@
-import MetaTrader5 as mt5
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -34,26 +33,8 @@ class MarketDataCollector:
         if not self.mt5_connector.is_connected():
             raise Exception("MT5 not connected")
 
-        # Map string timeframe to MT5 constants
-        tf_map = {
-            "M1": mt5.TIMEFRAME_M1,
-            "M5": mt5.TIMEFRAME_M5,
-            "M15": mt5.TIMEFRAME_M15,
-            "M30": mt5.TIMEFRAME_M30,
-            "H1": mt5.TIMEFRAME_H1,
-            "H4": mt5.TIMEFRAME_H4,
-            "D1": mt5.TIMEFRAME_D1,
-            "W1": mt5.TIMEFRAME_W1,
-            "MN1": mt5.TIMEFRAME_MN1
-        }
-        mt5_tf = tf_map.get(timeframe)
-        if not mt5_tf:
-            raise ValueError(f"Invalid timeframe: {timeframe}")
-
-        if from_time:
-            rates = mt5.copy_rates_from(symbol_name, mt5_tf, from_time, count)
-        else:
-            rates = mt5.copy_rates_from_pos(symbol_name, mt5_tf, 0, count)
+        # Use mt5_connector to get candles
+        rates = self.mt5_connector.get_candles(symbol_name, timeframe, count)
 
         if rates is None:
             logger.error(f"Failed to get historical data for {symbol_name}")
@@ -69,14 +50,14 @@ class MarketDataCollector:
             candle_data = {
                 "symbol_id": symbol.id,
                 "timeframe": timeframe,
-                "time": datetime.fromtimestamp(rate[0]),
-                "open": rate[1],
-                "high": rate[2],
-                "low": rate[3],
-                "close": rate[4],
-                "tick_volume": rate[5],
-                "spread": rate[6],
-                "real_volume": rate[7],
+                "time": datetime.fromtimestamp(rate.get("time")),
+                "open": rate.get("open"),
+                "high": rate.get("high"),
+                "low": rate.get("low"),
+                "close": rate.get("close"),
+                "tick_volume": rate.get("tick_volume", 0),
+                "spread": rate.get("spread", 0),
+                "real_volume": rate.get("real_volume", 0),
             }
             candles_data.append(candle_data)
 
@@ -92,7 +73,7 @@ class MarketDataCollector:
         if not self.mt5_connector.is_connected():
             raise Exception("MT5 not connected")
 
-        tick = mt5.symbol_info_tick(symbol_name)
+        tick = self.mt5_connector.get_tick(symbol_name)
         if tick is None:
             return None
 
@@ -103,12 +84,12 @@ class MarketDataCollector:
 
         tick_data = {
             "symbol_id": symbol.id,
-            "time": datetime.fromtimestamp(tick.time),
-            "bid": tick.bid,
-            "ask": tick.ask,
-            "last": tick.last,
-            "volume": tick.volume,
-            "volume_real": tick.volume_real
+            "time": datetime.fromtimestamp(tick.get("time")),
+            "bid": tick.get("bid"),
+            "ask": tick.get("ask"),
+            "last": tick.get("last"),
+            "volume": tick.get("volume"),
+            "volume_real": tick.get("volume_real")
         }
 
         if save_to_db:
