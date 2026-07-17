@@ -118,13 +118,19 @@ class StrategyRunner:
             candles_dict_list = []
             for c in candles:
                 candles_dict_list.append({
+                    "symbol_name": symbol_name,
                     "open": float(c.open),
                     "high": float(c.high),
                     "low": float(c.low),
                     "close": float(c.close),
                     "time": c.time
                 })
-            current_price = candles_dict_list[-1]["close"]
+            current_tick = self.mt5.get_tick(symbol_name)
+            if not current_tick:
+                logger.warning(f"Live tick not available for {symbol_name}")
+                return
+
+            current_price = current_tick["ask"]
 
             signal = strategy.generate_signal(candles_dict_list, current_price)
 

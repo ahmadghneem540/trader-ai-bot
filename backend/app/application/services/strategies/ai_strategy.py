@@ -21,11 +21,9 @@ class AIStrategy(StrategyBase):
         symbol_name = 'unknown'
         if len(candles) > 0:
             if isinstance(candles[-1], dict):
-                symbol_name = candles[-1].get('symbol_name', 'XAUUSD')
+                symbol_name = candles[-1].get('symbol_name', 'unknown')
             elif hasattr(candles[-1], 'symbol') and candles[-1].symbol and hasattr(candles[-1].symbol, 'name'):
                 symbol_name = candles[-1].symbol.name
-            else:
-                symbol_name = 'XAUUSD'
 
         try:
             # Run async AI analysis synchronously

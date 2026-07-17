@@ -180,6 +180,10 @@ class GoldAutonomousStrategy(StrategyBase):
     ) -> Optional[Signal]:
         if current_datetime is None:
             current_datetime = datetime.now()
+
+        symbol_name = "unknown"
+        if candles and isinstance(candles[-1], dict):
+            symbol_name = candles[-1].get("symbol_name", "unknown")
             
         # Compute all analyzers
         analyzer_results = self._compute_analyzers(
@@ -208,7 +212,7 @@ class GoldAutonomousStrategy(StrategyBase):
             return None
             
         return Signal(
-            symbol="XAUUSD",
+            symbol=symbol_name,
             signal_type=engine_decision.decision,
             price=current_price,
             confidence=engine_decision.confidence,

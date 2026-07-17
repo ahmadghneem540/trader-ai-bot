@@ -1,7 +1,7 @@
-import google.generativeai as genai
+from google import genai
 from app.core.config.settings import settings
 from app.core.logging.logger import get_logger
-from typing import Optional, Dict, Any, List
+from typing import Dict, Any, List
 import asyncio
 import json
 
@@ -11,18 +11,25 @@ logger = get_logger(__name__)
 class AIService:
     def __init__(self):
         self.api_key = settings.GEMINI_API_KEY
-        self._model = None
+        self._client = None
+        self._model_name = "gemini-2.0-flash"
         if self.api_key:
-            genai.configure(api_key=self.api_key)
-            self._model = genai.GenerativeModel('gemini-2.0-flash')
+            self._client = genai.Client(api_key=self.api_key)
+
+    def _generate_text(self, prompt: str) -> str:
+        if not self._client:
+            raise ValueError("AI client not initialized properly")
+
+        response = self._client.models.generate_content(
+            model=self._model_name,
+            contents=prompt,
+        )
+        return response.text or ""
 
     async def test_connection(self) -> Dict[str, Any]:
         if not self.api_key:
             logger.error("GEMINI_API_KEY is not set in environment variables")
             raise ValueError("GEMINI_API_KEY is not configured")
-
-        if not self._model:
-            raise ValueError("Model not initialized properly")
 
         prompt = """Reply with JSON only: 
 { 
@@ -36,10 +43,10 @@ class AIService:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
-                lambda: self._model.generate_content(prompt)
+                lambda: self._generate_text(prompt)
             )
             logger.info("Received response from Gemini API")
-            return {"response": response.text}
+            return {"response": response}
         except Exception as e:
             logger.exception(f"Error communicating with Gemini API: {str(e)}")
             raise
@@ -48,9 +55,6 @@ class AIService:
         if not self.api_key:
             logger.error("GEMINI_API_KEY is not set in environment variables")
             raise ValueError("GEMINI_API_KEY is not configured")
-
-        if not self._model:
-            raise ValueError("Model not initialized properly")
 
         prompt = f"""You are a professional institutional trader.
 
@@ -77,12 +81,12 @@ Required format:
             loop = asyncio.get_event_loop()
             response = await loop.run_in_executor(
                 None,
-                lambda: self._model.generate_content(prompt)
+                lambda: self._generate_text(prompt)
             )
             logger.info("Received analysis response from Gemini API")
             
             # Try to parse the JSON response
-            response_text = response.text
+            response_text = response
             # Clean up any markdown code blocks if present
             if response_text.startswith('```json'):
                 response_text = response_text[7:]
@@ -92,7 +96,7 @@ Required format:
             parsed_response = json.loads(response_text.strip())
             return parsed_response
         except json.JSONDecodeError as e:
-            logger.exception(f"Failed to parse Gemini response as JSON: {str(e)}, response: {response.text}")
+            logger.exception(f"Failed to parse Gemini response as JSON: {str(e)}, response: {response_text}")
             raise ValueError("Invalid JSON response from AI service")
         except Exception as e:
             logger.exception(f"Error communicating with Gemini API: {str(e)}")

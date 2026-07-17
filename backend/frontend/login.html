@@ -1,0 +1,411 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraderAI - تسجيل الدخول</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 480px;
+            padding: 20px;
+        }
+
+        .login-box {
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            padding: 48px 40px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+
+        .logo {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+
+        .logo h1 {
+            font-size: 2.8rem;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            font-weight: 700;
+            margin-bottom: 5px;
+        }
+
+        .logo p {
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+
+        .option-btn {
+            width: 100%;
+            padding: 16px 20px;
+            margin: 12px 0;
+            background: rgba(30, 41, 59, 0.9);
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            border-radius: 12px;
+            color: #e2e8f0;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .option-btn:hover {
+            border-color: #3b82f6;
+            background: rgba(59, 130, 246, 0.1);
+            transform: translateY(-2px);
+        }
+
+        .option-btn.primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border-color: transparent;
+            color: white;
+        }
+
+        .option-btn.primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 30px -8px rgba(59, 130, 246, 0.6);
+        }
+
+        .option-label {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+
+        .option-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .option-desc {
+            font-size: 0.85rem;
+            color: #94a3b8;
+            font-weight: 400;
+        }
+
+        .option-icon {
+            font-size: 2rem;
+            opacity: 0.7;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 28px 0;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid rgba(148, 163, 184, 0.3);
+        }
+
+        .divider span {
+            padding: 0 15px;
+            color: #64748b;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        .form-section {
+            display: none;
+            margin-top: 20px;
+            padding: 24px;
+            background: rgba(30, 41, 59, 0.6);
+            border-radius: 12px;
+        }
+
+        .form-section.active {
+            display: block;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #cbd5e1;
+            font-weight: 500;
+            font-size: 0.95rem;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid rgba(148, 163, 184, 0.3);
+            border-radius: 8px;
+            font-size: 1rem;
+            background: rgba(15, 23, 42, 0.8);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            background: rgba(15, 23, 42, 0.95);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        input::placeholder {
+            color: #64748b;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%);
+            border: none;
+            border-radius: 10px;
+            color: white;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+        }
+
+        .submit-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .message {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+            font-size: 0.9rem;
+        }
+
+        .message.success {
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.3);
+            color: #4ade80;
+            display: block;
+        }
+
+        .message.error {
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.3);
+            color: #fca5a5;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="login-box">
+            <div class="logo">
+                <h1>TraderAI</h1>
+                <p>منصة التداول الذكي</p>
+            </div>
+
+            <div id="message" class="message"></div>
+
+            <!-- Demo Mode Button (Most Prominent) -->
+            <button class="option-btn primary" onclick="useDemoMode()">
+                <div class="option-label">
+                    <div class="option-title">🎮 الوضع التجريبي</div>
+                    <div class="option-desc">تجربة كاملة بدون حساب حقيقي</div>
+                </div>
+                <div class="option-icon">→</div>
+            </button>
+
+            <div class="divider"><span>أو استخدم حساب حقيقي</span></div>
+
+            <!-- Local MT5 Option -->
+            <button class="option-btn" onclick="showForm('local')">
+                <div class="option-label">
+                    <div class="option-title">💻 ميتاترادر محلي</div>
+                    <div class="option-desc">اتصال مباشر من تطبيق MT5 على جهازك</div>
+                </div>
+                <div class="option-icon">→</div>
+            </button>
+
+            <!-- MetaAPI Option -->
+            <button class="option-btn" onclick="showForm('metaapi')">
+                <div class="option-label">
+                    <div class="option-title">☁️ MetaAPI (الويب)</div>
+                    <div class="option-desc">اتصال عبر MetaTrader Web Terminal</div>
+                </div>
+                <div class="option-icon">→</div>
+            </button>
+
+            <!-- Local MT5 Form -->
+            <div id="localForm" class="form-section">
+                <div class="form-group">
+                    <label for="localLogin">رقم الحساب</label>
+                    <input type="number" id="localLogin" placeholder="أدخل رقم الحساب">
+                </div>
+                <div class="form-group">
+                    <label for="localPassword">كلمة المرور</label>
+                    <input type="password" id="localPassword" placeholder="أدخل كلمة المرور">
+                </div>
+                <div class="form-group">
+                    <label for="localServer">الخادم</label>
+                    <select id="localServer">
+                        <option value="MetaQuotes-Demo">MetaQuotes-Demo</option>
+                        <option value="ICMarketsSC-Demo">ICMarketsSC-Demo</option>
+                        <option value="XMTrading-Demo">XMTrading-Demo</option>
+                        <option value="FXTM-Demo">FXTM-Demo</option>
+                        <option value="Tickmill-Demo">Tickmill-Demo</option>
+                    </select>
+                </div>
+                <button class="submit-btn" onclick="login('local')">اتصال</button>
+            </div>
+
+            <!-- MetaAPI Form -->
+            <div id="metaapiForm" class="form-section">
+                <div class="form-group">
+                    <label for="metaLogin">رقم الحساب</label>
+                    <input type="number" id="metaLogin" placeholder="أدخل رقم الحساب">
+                </div>
+                <div class="form-group">
+                    <label for="metaPassword">كلمة المرور</label>
+                    <input type="password" id="metaPassword" placeholder="أدخل كلمة المرور">
+                </div>
+                <div class="form-group">
+                    <label for="metaServer">الخادم</label>
+                    <select id="metaServer">
+                        <option value="MetaQuotes-Demo">MetaQuotes-Demo</option>
+                        <option value="ICMarketsSC-Demo">ICMarketsSC-Demo</option>
+                        <option value="XMTrading-Demo">XMTrading-Demo</option>
+                        <option value="FXTM-Demo">FXTM-Demo</option>
+                        <option value="Tickmill-Demo">Tickmill-Demo</option>
+                    </select>
+                </div>
+                <button class="submit-btn" onclick="login('metaapi')">اتصال</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const MT5_API = 'http://localhost:8000/api/v1/mt5';
+        const META_API = 'http://localhost:8000/api/v1/metaapi';
+        let currentForm = null;
+
+        async function checkExistingConnection() {
+            try {
+                const response = await fetch(`${MT5_API}/status`);
+                const data = await response.json();
+                if (data.data && data.data.connected) {
+                    window.location.href = 'terminal.html';
+                }
+            } catch (e) {
+                console.log('No existing connection');
+            }
+        }
+
+        function showMessage(text, type) {
+            const msgEl = document.getElementById('message');
+            msgEl.textContent = text;
+            msgEl.className = `message ${type}`;
+            if (type !== 'success') {
+                setTimeout(() => msgEl.className = 'message', 5000);
+            }
+        }
+
+        function showForm(type) {
+            // Hide all forms
+            document.querySelectorAll('.form-section').forEach(el => el.classList.remove('active'));
+            
+            // Show selected form
+            const formId = type === 'local' ? 'localForm' : 'metaapiForm';
+            document.getElementById(formId).classList.add('active');
+            currentForm = type;
+        }
+
+        async function useDemoMode() {
+            localStorage.setItem('connectionType', 'demo');
+            window.location.href = 'terminal.html?demo=true';
+        }
+
+        async function login(type) {
+            let loginInput, password, server, apiBase, btnId;
+            
+            if (type === 'local') {
+                loginInput = document.getElementById('localLogin').value;
+                password = document.getElementById('localPassword').value;
+                server = document.getElementById('localServer').value;
+                apiBase = MT5_API;
+            } else {
+                loginInput = document.getElementById('metaLogin').value;
+                password = document.getElementById('metaPassword').value;
+                server = document.getElementById('metaServer').value;
+                apiBase = META_API;
+            }
+
+            if (!loginInput || !password) {
+                showMessage('يرجى تعبئة جميع الحقول', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${apiBase}/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        login: parseInt(loginInput),
+                        password: password,
+                        server: server
+                    })
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    localStorage.setItem('connectionType', type);
+                    showMessage('تم الاتصال بنجاح! جار تحويلك...', 'success');
+                    setTimeout(() => {
+                        window.location.href = 'terminal.html';
+                    }, 1000);
+                } else {
+                    showMessage(result.error?.error || result.message || 'فشل تسجيل الدخول', 'error');
+                }
+            } catch (e) {
+                showMessage('خطأ في الاتصال بالخادم', 'error');
+            }
+        }
+
+        // Check existing connection when page loads
+        window.addEventListener('DOMContentLoaded', () => {
+            checkExistingConnection();
+        });
+    </script>
+</body>
+</html>

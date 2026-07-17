@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     MT5_PASSWORD: Optional[str] = None
     MT5_SERVER: Optional[str] = None
     MT5_PATH: Optional[str] = None
+    MT5_USE_BRIDGE: bool = False
+    MT5_BRIDGE_URL: Optional[str] = None
+    
+    # MetaApi Cloud
+    META_API_TOKEN: Optional[str] = None
+    META_API_ACCOUNT_ID: Optional[str] = None
 
     # Logging
     LOG_LEVEL: str = "INFO"

@@ -4,14 +4,18 @@ os.environ['PASSLIB_BCRYPT_BUG_DETECTION'] = 'skip'
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
+import os
 from contextlib import asynccontextmanager
+from sqlalchemy.exc import SQLAlchemyError
 from app.core.config.settings import settings
 from app.core.logging.logger import setup_logging, get_logger
 from app.core.scheduler import get_scheduler
 from app.core.database.session import SessionLocal, Base
 from app.infrastructure.database.repositories import SymbolRepository
 from app.infrastructure.mt5.connector import get_mt5_connector
-from app.api.routes import health, symbols, market_data, trading, auth, websockets, strategy, backtest, mt5, ai
+from app.api.routes import health, symbols, market_data, trading, auth, websockets, strategy, backtest, mt5, ai, metaapi_routes
 from app.application.services.strategy_runner import strategy_runner
 from app.domain.models import User, Account, Symbol, Candle, Order, Position, Backtest, AccountSnapshot, LogEntry, NewsEvent, RiskLimit, Signal, StrategyConfig, Tick
 
@@ -21,10 +25,14 @@ logger = get_logger(__name__)
 
 def init_default_data():
     """Initialize default data in the database"""
-    # Create all tables
     from app.core.database.session import engine
-    Base.metadata.create_all(bind=engine)
-    
+
+    try:
+        Base.metadata.create_all(bind=engine)
+    except SQLAlchemyError as exc:
+        logger.error("Database initialization skipped: %s", exc)
+        return False
+
     db = SessionLocal()
     try:
         # Check if symbols exist
@@ -47,8 +55,10 @@ def init_default_data():
             for symbol_data in default_symbols:
                 symbol_repo.create(symbol_data)
             logger.info("Default symbols added to database")
+        return True
     except Exception as e:
         logger.exception(f"Error initializing default data: {e}")
+        return False
     finally:
         db.close()
 
@@ -57,8 +67,8 @@ def init_default_data():
 async def lifespan(app: FastAPI):
     logger.info(f"Starting {settings.APP_NAME} v{settings.APP_VERSION}")
     
-    # Initialize default data
-    init_default_data()
+    if not init_default_data():
+        logger.warning("Application started with database initialization unavailable")
     
     mt5_connector = get_mt5_connector()
     scheduler = get_scheduler()
@@ -126,8 +136,43 @@ app.include_router(strategy.router, prefix="/api/v1")
 app.include_router(backtest.router, prefix="/api/v1/backtest")
 app.include_router(mt5.router, prefix="/api/v1")
 app.include_router(ai.router, prefix="/api/v1")
+app.include_router(metaapi_routes.router, prefix="/api/v1")
+
+# Serve frontend
+frontend_path = os.path.join(os.path.dirname(__file__), "frontend")
+frontend_path = os.path.abspath(frontend_path)
+if os.path.exists(frontend_path):
+    app.mount("/static", StaticFiles(directory=frontend_path), name="static")
 
 
 @app.get("/")
 async def root():
+    login_path = os.path.join(os.path.dirname(__file__), "frontend", "login.html")
+    login_path = os.path.abspath(login_path)
+    if os.path.exists(login_path):
+        return FileResponse(login_path)
     return {"message": f"Welcome to {settings.APP_NAME}"}
+
+@app.get("/login.html")
+async def login_page():
+    login_path = os.path.join(os.path.dirname(__file__), "frontend", "login.html")
+    login_path = os.path.abspath(login_path)
+    if os.path.exists(login_path):
+        return FileResponse(login_path)
+    return {"error": "Page not found"}
+
+@app.get("/terminal.html")
+async def terminal_page():
+    terminal_path = os.path.join(os.path.dirname(__file__), "frontend", "terminal.html")
+    terminal_path = os.path.abspath(terminal_path)
+    if os.path.exists(terminal_path):
+        return FileResponse(terminal_path)
+    return {"error": "Page not found"}
+
+@app.get("/dashboard.html")
+async def dashboard_page():
+    dashboard_path = os.path.join(os.path.dirname(__file__), "frontend", "dashboard.html")
+    dashboard_path = os.path.abspath(dashboard_path)
+    if os.path.exists(dashboard_path):
+        return FileResponse(dashboard_path)
+    return {"error": "Page not found"}

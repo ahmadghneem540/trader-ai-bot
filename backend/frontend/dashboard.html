@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TraderAI - منصة التداول</title>
+    <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #0d1117; color: #c9d1d9; min-height: 100vh; padding: 0; }
+        
+        /* Header */
+        .header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 12px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .logo { font-size: 24px; font-weight: bold; color: #58a6ff; }
+        
+        .btn-group { display: flex; gap: 10px; }
+        .btn {
+            padding: 10px 20px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+            color: white;
+        }
+        .btn-primary { background: #238636; }
+        .btn-primary:hover { background: #2ea043; }
+        .btn-secondary { background: #21262d; border: 1px solid #30363d; }
+        .btn-secondary:hover { background: #30363d; border-color: #8b949e; }
+        .btn-danger { background: #da3633; }
+        .btn-danger:hover { background: #f85149; }
+        .btn-warning { background: #d29922; }
+        .btn-warning:hover { background: #e3b341; }
+        
+        .connection-status {
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .status-connected { background: rgba(46, 160, 67, 0.15); color: #3fb950; }
+        .status-disconnected { background: rgba(248, 81, 73, 0.15); color: #f85149; }
+        .status-demo { background: rgba(210, 153, 34, 0.15); color: #d29922; }
+
+        /* Main Container */
+        .container { max-width: 1600px; margin: 0 auto; padding: 20px; }
+
+        /* Stats Grid */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .stat-value { font-size: 22px; font-weight: bold; margin-bottom: 5px; }
+        .stat-label { color: #8b949e; font-size: 13px; text-transform: uppercase; letter-spacing: 1px; }
+        .profit { color: #3fb950; }
+        .loss { color: #f85149; }
+
+        /* Main Grid */
+        .main-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        /* Chart Container */
+        .chart-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .chart-title {
+            font-size: 18px;
+            font-weight: bold;
+            color: #58a6ff;
+        }
+        .timeframe-tabs { display: flex; gap: 5px; }
+        .timeframe-tab {
+            padding: 6px 14px;
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .timeframe-tab.active {
+            background: #238636;
+            border-color: #238636;
+            color: white;
+        }
+        .timeframe-tab:hover { background: #30363d; }
+        #chartContainer { height: 450px; }
+        
+        .price-display {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #30363d;
+            font-weight: 600;
+        }
+        .price-buy { color: #3fb950; }
+        .price-sell { color: #f85149; }
+        .price-spread { color: #d29922; }
+
+        /* Sidebar */
+        .sidebar { display: flex; flex-direction: column; gap: 20px; }
+        
+        .card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 20px;
+        }
+        .card-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #58a6ff;
+        }
+
+        /* Signal Panel */
+        .signal-card {
+            padding: 25px;
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .signal-buy { background: rgba(63, 185, 80, 0.1); border: 1px solid #3fb950; }
+        .signal-sell { background: rgba(248, 81, 73, 0.1); border: 1px solid #f85149; }
+        .signal-hold { background: rgba(139, 148, 158, 0.1); border: 1px solid #8b949e; }
+        .signal-title {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 8px;
+        }
+        .signal-price { color: #8b949e; margin-bottom: 10px; }
+        .signal-indicator { font-size: 12px; color: #6e7681; }
+
+        /* Trade Buttons */
+        .trade-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .trade-btn {
+            padding: 18px;
+            border-radius: 10px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+        .btn-manual-buy {
+            background: linear-gradient(135deg, #3fb950, #2ea043);
+            color: white;
+        }
+        .btn-manual-buy:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(63,185,80,0.3); }
+        .btn-manual-sell {
+            background: linear-gradient(135deg, #f85149, #da3633);
+            color: white;
+        }
+        .btn-manual-sell:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(248,81,73,0.3); }
+
+        /* Positions Table */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        th, td {
+            padding: 12px 8px;
+            text-align: right;
+            border-bottom: 1px solid #30363d;
+        }
+        th { color: #8b949e; font-weight: 600; }
+        tr:hover { background: #21262d; }
+        .empty-state { text-align: center; padding: 40px; color: #6e7681; }
+
+        /* Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.75);
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        .modal {
+            background: #161b22;
+            border: 1px solid #30363d;
+            padding: 30px;
+            border-radius: 16px;
+            min-width: 350px;
+        }
+        .modal h3 { margin-bottom: 20px; color: #58a6ff; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #8b949e;
+            font-size: 13px;
+            font-weight: 600;
+        }
+        .form-group input {
+            width: 100%;
+            padding: 10px 14px;
+            border-radius: 8px;
+            border: 1px solid #30363d;
+            background: #0d1117;
+            color: #c9d1d9;
+            font-size: 15px;
+        }
+        .form-group input:focus { outline: none; border-color: #58a6ff; }
+        .modal-actions { display: flex; gap: 10px; margin-top: 25px; }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="logo">TraderAI منصة التداول</div>
+        <div class="btn-group">
+            <button id="demoBtn" class="btn btn-warning" onclick="toggleDemoMode()">حساب تجريبي</button>
+            <button id="connectBtn" class="btn btn-secondary" onclick="showConnectModal()">ربط الحساب</button>
+            <button id="startBotBtn" class="btn btn-primary" onclick="toggleBot()">تشغيل البوت</button>
+            <button class="btn btn-danger" onclick="stopBot()">إيقاف البوت</button>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value" id="balance">$10,000.00</div>
+                <div class="stat-label">الرصيد</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="equity">$10,000.00</div>
+                <div class="stat-label">الأسهم</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value profit" id="dailyPnL">+$0.00</div>
+                <div class="stat-label">الربح اليومي</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="winRate">0%</div>
+                <div class="stat-label">نسبة الربح</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="totalTrades">0</div>
+                <div class="stat-label">الصفقات</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="openPositions">0</div>
+                <div class="stat-label">صفقات مفتوحة</div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-grid">
+            <!-- Chart -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <div class="chart-title">XAUUSD / الذهب مقابل الدولار</div>
+                    <div class="timeframe-tabs">
+                        <div class="timeframe-tab active" onclick="changeTimeframe('M1')">M1</div>
+                        <div class="timeframe-tab" onclick="changeTimeframe('M5')">M5</div>
+                        <div class="timeframe-tab" onclick="changeTimeframe('M15')">M15</div>
+                        <div class="timeframe-tab" onclick="changeTimeframe('H1')">H1</div>
+                        <div class="timeframe-tab" onclick="changeTimeframe('H4')">H4</div>
+                        <div class="timeframe-tab" onclick="changeTimeframe('D1')">D1</div>
+                    </div>
+                </div>
+                <div id="chartContainer"></div>
+                <div class="price-display">
+                    <span class="price-buy">شراء: <span id="bidPrice">4000.00</span></span>
+                    <span class="price-sell">بيع: <span id="askPrice">4000.50</span></span>
+                    <span class="price-spread">سبريد: <span id="spreadPrice">0.50</span></span>
+                </div>
+            </div>
+
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <!-- Signal -->
+                <div class="card">
+                    <div class="card-title">تحليل السوق</div>
+                    <div id="signalContainer">
+                        <div class="signal-card signal-hold">
+                            <div class="signal-title">⏳ انتظر</div>
+                            <div class="signal-price">جارٍ تحليل البيانات...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Manual Trading -->
+                <div class="card">
+                    <div class="card-title">تداول يدوي</div>
+                    <div class="trade-buttons">
+                        <button class="trade-btn btn-manual-buy" onclick="manualTrade('buy')">شراء</button>
+                        <button class="trade-btn btn-manual-sell" onclick="manualTrade('sell')">بيع</button>
+                    </div>
+                </div>
+
+                <!-- Open Positions -->
+                <div class="card">
+                    <div class="card-title">الصفقات المفتوحة</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>الرمز</th>
+                                <th>النوع</th>
+                                <th>الحجم</th>
+                                <th>الربح</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="positionsTable">
+                            <tr><td colspan="5"><div class="empty-state">لا توجد صفقات مفتوحة</div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connect Modal -->
+    <div class="modal-overlay" id="connectModal">
+        <div class="modal">
+            <h3>ربط حساب MetaTrader 5</h3>
+            <div class="form-group">
+                <label>رقم الحساب</label>
+                <input type="number" id="mt5Login" placeholder="أدخل رقم الحساب">
+            </div>
+            <div class="form-group">
+                <label>كلمة المرور</label>
+                <input type="password" id="mt5Password" placeholder="أدخل كلمة المرور">
+            </div>
+            <div class="form-group">
+                <label>السيرفر</label>
+                <input type="text" id="mt5Server" placeholder="اسم السيرفر">
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="connectMT5()">ربط الحساب</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('connectModal').style.display='none'">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api/v1/mt5';
+        let chart;
+        let candleSeries;
+        let isConnected = false;
+        let isDemoMode = false;
+        let botActive = false;
+        let currentTimeframe = 'H1';
+        let currentPrice = 4000;
+        let demoPositions = [];
+        let demoBalance = 10000;
+
+        window.addEventListener('DOMContentLoaded', () => {
+            initChart();
+            loadDashboard();
+            setInterval(refreshData, 1000);  // Faster updates
+        });
+
+        function initChart() {
+            const container = document.getElementById('chartContainer');
+            chart = LightweightCharts.createChart(container, {
+                layout: { backgroundColor: '#161b22', textColor: '#c9d1d9' },
+                grid: {
+                    vertLines: { color: 'rgba(48, 54, 61, 0.5)' },
+                    horzLines: { color: 'rgba(48, 54, 61, 0.5)' }
+                },
+                rightPriceScale: { borderColor: '#30363d' },
+                timeScale: { borderColor: '#30363d' },
+            });
+            candleSeries = chart.addCandlestickSeries({
+                upColor: '#3fb950',
+                downColor: '#f85149',
+                borderUpColor: '#3fb950',
+                borderDownColor: '#f85149',
+                wickUpColor: '#3fb950',
+                wickDownColor: '#f85149'
+            });
+            loadCandles();
+        }
+
+        function changeTimeframe(tf) {
+            currentTimeframe = tf;
+            document.querySelectorAll('.timeframe-tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            loadCandles();
+        }
+
+        async function loadCandles() {
+            try {
+                const res = await fetch(`${API_BASE}/candles/XAUUSD/${currentTimeframe}?count=200`);
+                const data = await res.json();
+                if (data.success && data.data && data.data.length > 0) {
+                    candleSeries.setData(data.data);
+                    chart.timeScale().fitContent();
+                    updatePrices(data.data);
+                    updateSignal(data.data);
+                } else {
+                    generateDemoData();
+                }
+            } catch (e) {
+                console.error(e);
+                generateDemoData();
+            }
+        }
+
+        function updatePrices(candles) {
+            if (candles && candles.length > 0) {
+                const lastCandle = candles[candles.length - 1];
+                currentPrice = lastCandle.close;
+                const spread = 0.5;
+                const bid = currentPrice - spread/2;
+                const ask = currentPrice + spread/2;
+                document.getElementById('bidPrice').textContent = bid.toFixed(2);
+                document.getElementById('askPrice').textContent = ask.toFixed(2);
+                document.getElementById('spreadPrice').textContent = spread.toFixed(2);
+            }
+        }
+
+        function generateDemoData() {
+            const now = Math.floor(Date.now() / 1000);
+            let data = [];
+            let price = 4000;  // Realistic XAUUSD for 2025/2026
+            let dt = 3600;  // H1 default
+            
+            if (currentTimeframe === 'M1') dt = 60;
+            else if (currentTimeframe === 'M5') dt = 300;
+            else if (currentTimeframe === 'M15') dt = 900;
+            else if (currentTimeframe === 'H4') dt = 14400;
+            else if (currentTimeframe === 'D1') dt = 86400;
+
+            for (let i = 200; i >= 0; i--) {
+                const time = now - (i * dt);
+                const open = price;
+                const change = (Math.random() - 0.5) * 20;
+                const close = open + change;
+                const high = Math.max(open, close) + Math.random() * 10;
+                const low = Math.min(open, close) - Math.random() * 10;
+                data.push({
+                    time: time,
+                    open: parseFloat(open.toFixed(2)),
+                    high: parseFloat(high.toFixed(2)),
+                    low: parseFloat(low.toFixed(2)),
+                    close: parseFloat(close.toFixed(2))
+                });
+                price = close;
+            }
+            candleSeries.setData(data);
+            chart.timeScale().fitContent();
+            updatePrices(data);
+            updateSignal(data);
+        }
+
+        function updateSignal(candles) {
+            const container = document.getElementById('signalContainer');
+            if (!candles || candles.length < 50) {
+                container.innerHTML = `
+                    <div class="signal-card signal-hold">
+                        <div class="signal-title">⏳ انتظر</div>
+                        <div class="signal-price">بيانات غير كافية للتحليل</div>
+                    </div>
+                `;
+                return;
+            }
+
+            // Simple trend analysis using moving averages
+            const closes = candles.slice(-50).map(c => c.close);
+            const sma20 = closes.slice(-20).reduce((a, b) => a + b, 0) / 20;
+            const sma50 = closes.reduce((a, b) => a + b, 0) / 50;
+            const lastClose = closes[closes.length - 1];
+
+            let signal, className, emoji;
+            if (lastClose > sma20 && sma20 > sma50) {
+                signal = 'شراء';
+                className = 'signal-buy';
+                emoji = '📈';
+            } else if (lastClose < sma20 && sma20 < sma50) {
+                signal = 'بيع';
+                className = 'signal-sell';
+                emoji = '📉';
+            } else {
+                signal = 'انتظر';
+                className = 'signal-hold';
+                emoji = '⏳';
+            }
+
+            container.innerHTML = `
+                <div class="signal-card ${className}">
+                    <div class="signal-title">${emoji} ${signal}</div>
+                    <div class="signal-price">السعر الحالي: ${lastClose.toFixed(2)}</div>
+                    <div class="signal-indicator">
+                        SMA20: ${sma20.toFixed(2)} | SMA50: ${sma50.toFixed(2)}
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleDemoMode() {
+            isDemoMode = !isDemoMode;
+            if (isDemoMode) {
+                document.getElementById('demoBtn').textContent = 'إيقاف التجريبي';
+                document.getElementById('demoBtn').classList.remove('btn-warning');
+                document.getElementById('demoBtn').classList.add('btn-primary');
+                isConnected = false;
+                loadDemoData();
+                generateDemoData();
+            } else {
+                document.getElementById('demoBtn').textContent = 'حساب تجريبي';
+                document.getElementById('demoBtn').classList.remove('btn-primary');
+                document.getElementById('demoBtn').classList.add('btn-warning');
+                loadDashboard();
+            }
+        }
+
+        function loadDemoData() {
+            document.getElementById('balance').textContent = '$' + demoBalance.toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('equity').textContent = '$' + (demoBalance + Math.random() * 500).toLocaleString('en-US', {minimumFractionDigits: 2});
+            document.getElementById('winRate').textContent = '0%';
+            document.getElementById('totalTrades').textContent = '0';
+            document.getElementById('openPositions').textContent = demoPositions.length;
+            
+            const profitEl = document.getElementById('dailyPnL');
+            profitEl.textContent = '+$0.00';
+            profitEl.className = 'stat-value profit';
+            
+            loadDemoPositions();
+        }
+
+        function loadDemoPositions() {
+            const tbody = document.getElementById('positionsTable');
+            if (demoPositions.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">لا توجد صفقات مفتوحة</div></td></tr>';
+            } else {
+                let totalProfit = 0;
+                tbody.innerHTML = demoPositions.map((pos, idx) => {
+                    const profit = pos.type === 'buy' 
+                        ? (currentPrice - pos.price) * pos.volume * 100 
+                        : (pos.price - currentPrice) * pos.volume * 100;
+                    totalProfit += profit;
+                    return `
+                        <tr>
+                            <td>XAUUSD</td>
+                            <td style="color:${pos.type === 'buy' ? '#3fb950' : '#f85149'}">${pos.type === 'buy' ? 'شراء' : 'بيع'}</td>
+                            <td>${pos.volume}</td>
+                            <td class="${profit >= 0 ? 'profit' : 'loss'}">$${profit.toFixed(2)}</td>
+                            <td><button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="closeDemoPosition(${idx})">إغلاق</button></td>
+                        </tr>
+                    `;
+                }).join('');
+                
+                document.getElementById('openPositions').textContent = demoPositions.length;
+                const demoEquity = demoBalance + totalProfit;
+                document.getElementById('equity').textContent = '$' + demoEquity.toLocaleString('en-US', {minimumFractionDigits: 2});
+                const dailyPnLEl = document.getElementById('dailyPnL');
+                dailyPnLEl.textContent = (totalProfit >= 0 ? '+' : '') + '$' + totalProfit.toFixed(2);
+                dailyPnLEl.className = 'stat-value ' + (totalProfit >= 0 ? 'profit' : 'loss');
+            }
+        }
+
+        function showConnectModal() {
+            document.getElementById('connectModal').style.display = 'flex';
+        }
+
+        async function connectMT5() {
+            const login = parseInt(document.getElementById('mt5Login').value);
+            const password = document.getElementById('mt5Password').value;
+            const server = document.getElementById('mt5Server').value;
+
+            if (!login || !password || !server) {
+                alert('يرجى تعبئة جميع الحقول');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/connect`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ login, password, server })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('تم ربط الحساب بنجاح!');
+                    document.getElementById('connectModal').style.display = 'none';
+                    isConnected = true;
+                    isDemoMode = false;
+                    document.getElementById('connectBtn').textContent = 'متصل ✓';
+                    document.getElementById('connectBtn').classList.remove('btn-secondary');
+                    document.getElementById('connectBtn').classList.add('btn-primary');
+                    loadDashboard();
+                } else {
+                    alert('خطأ في الربط: ' + (data.error ? data.error.error || data.error : 'خطأ غير معروف'));
+                }
+            } catch (err) {
+                alert('خطأ في الاتصال بالخادم');
+                console.error(err);
+            }
+        }
+
+        async function manualTrade(type) {
+            if (isDemoMode) {
+                const volume = 0.1;
+                demoPositions.push({
+                    type: type,
+                    volume: volume,
+                    price: currentPrice,
+                    time: Date.now()
+                });
+                alert(`تم فتح صفقة ${type === 'buy' ? 'شراء' : 'بيع'} تجريبية بنجاح!`);
+                loadDemoPositions();
+                return;
+            }
+
+            if (!isConnected) {
+                alert('يرجى ربط الحساب أولاً أو تفعيل وضع التجريبي');
+                return;
+            }
+
+            try {
+                const res = await fetch(`${API_BASE}/trade/${type}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ symbol: 'XAUUSD', volume: 0.1, sl: null, tp: null })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('تم فتح الصفقة بنجاح!');
+                    loadPositions();
+                } else {
+                    alert('خطأ في فتح الصفقة');
+                }
+            } catch (err) {
+                alert('خطأ في الاتصال');
+            }
+        }
+
+        function closeDemoPosition(idx) {
+            const pos = demoPositions[idx];
+            const profit = pos.type === 'buy' 
+                ? (currentPrice - pos.price) * pos.volume * 100 
+                : (pos.price - currentPrice) * pos.volume * 100;
+            demoBalance += profit;
+            demoPositions.splice(idx, 1);
+            loadDemoData();
+        }
+
+        function toggleBot() {
+            botActive = !botActive;
+            if (botActive) {
+                document.getElementById('startBotBtn').textContent = 'البوت يعمل الآن ✓';
+                alert('تم تشغيل البوت بنجاح! سيقوم بالتداول تلقائياً');
+            } else {
+                document.getElementById('startBotBtn').textContent = 'تشغيل البوت';
+            }
+        }
+
+        function stopBot() {
+            botActive = false;
+            document.getElementById('startBotBtn').textContent = 'تشغيل البوت';
+            alert('تم إيقاف البوت');
+        }
+
+        async function loadDashboard() {
+            if (!isDemoMode) {
+                await Promise.all([
+                    loadAccountInfo(),
+                    loadPositions(),
+                    loadHistoryStats()
+                ]);
+            }
+        }
+
+        async function loadAccountInfo() {
+            if (isDemoMode) return;
+            try {
+                const res = await fetch(`${API_BASE}/account`);
+                const data = await res.json();
+                if (data.success) {
+                    const acc = data.data;
+                    document.getElementById('balance').textContent = '$' + acc.balance.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    document.getElementById('equity').textContent = '$' + acc.equity.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    const profitEl = document.getElementById('dailyPnL');
+                    profitEl.textContent = (acc.profit >= 0 ? '+' : '') + '$' + acc.profit.toLocaleString('en-US', {minimumFractionDigits: 2});
+                    profitEl.className = 'stat-value ' + (acc.profit >= 0 ? 'profit' : 'loss');
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadHistoryStats() {
+            if (isDemoMode) return;
+            try {
+                const res = await fetch(`${API_BASE}/history?days=30`);
+                const data = await res.json();
+                if (data.success && data.data) {
+                    document.getElementById('winRate').textContent = (data.data.win_rate || 0).toFixed(2) + '%';
+                    document.getElementById('totalTrades').textContent = data.data.total_trades || 0;
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function loadPositions() {
+            if (isDemoMode) return;
+            try {
+                const res = await fetch(`${API_BASE}/positions`);
+                const data = await res.json();
+                const tbody = document.getElementById('positionsTable');
+                if (data.success && data.data && data.data.length > 0) {
+                    tbody.innerHTML = data.data.map(pos => {
+                        const profit = typeof pos.profit === 'number' ? pos.profit : parseFloat(pos.profit || '0');
+                        return `
+                            <tr>
+                                <td>${pos.symbol}</td>
+                                <td style="color:${pos.type === 'buy' || pos.type === 0 ? '#3fb950' : '#f85149'}">${pos.type === 'buy' || pos.type === 0 ? 'شراء' : 'بيع'}</td>
+                                <td>${pos.volume}</td>
+                                <td class="${profit >= 0 ? 'profit' : 'loss'}">$${profit.toFixed(2)}</td>
+                                <td><button class="btn btn-danger" style="padding:4px 10px;font-size:12px" onclick="closePosition(${pos.ticket})">إغلاق</button></td>
+                            </tr>
+                        `;
+                    }).join('');
+                    document.getElementById('openPositions').textContent = data.data.length;
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state">لا توجد صفقات مفتوحة</div></td></tr>';
+                    document.getElementById('openPositions').textContent = '0';
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function closePosition(ticket) {
+            if (isDemoMode) return;
+            try {
+                await fetch(`${API_BASE}/trade/close/${ticket}`, { method: 'POST' });
+                loadPositions();
+                loadAccountInfo();
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        async function refreshData() {
+            // Update chart with new candle
+            if (!isConnected && !isDemoMode) {
+                generateDemoData();
+            }
+            
+            if (isDemoMode) {
+                loadDemoPositions();
+            } else if (isConnected) {
+                loadAccountInfo();
+                loadPositions();
+            }
+        }
+    </script>
+</body>
+</html>

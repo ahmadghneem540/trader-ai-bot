@@ -1,5 +1,6 @@
 from typing import Optional, Dict, Any, List
 from app.core.config.settings import settings
+from app.infrastructure.mt5.bridge_client import MT5BridgeClient
 from app.core.logging.logger import (
     get_logger,
     get_mt5_logger,
@@ -28,7 +29,7 @@ try:
 except ImportError:
     mt5 = None
     MT5_AVAILABLE = False
-    get_logger(__name__).warning("MetaTrader 5 not available - running in demo mode")
+    get_logger(__name__).warning("MetaTrader 5 not available")
 
 logger = get_logger(__name__)
 mt5_connection_logger = get_mt5_logger()
@@ -176,6 +177,93 @@ def get_suggested_solution(error_code: int, stage: str) -> str:
     return solutions.get(error_code, "Unknown error, please check the logs for more details")
 
 
+def find_mt5_installation_paths() -> List[str]:
+    """
+    Automatically detect common MetaTrader 5 installation paths on Windows.
+    Returns list of possible paths in priority order.
+    """
+    paths = []
+    if os.name == "nt":
+        # Common MT5 installation directories
+        program_files = os.environ.get("ProgramFiles", "C:\\Program Files")
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")
+        app_data = os.environ.get("AppData", "")
+        local_app_data = os.environ.get("LocalAppData", "")
+        user_profile = os.environ.get("USERPROFILE", "")
+
+        # Standard installation paths
+        standard_paths = [
+            os.path.join(program_files, "MetaTrader 5"),
+            os.path.join(program_files_x86, "MetaTrader 5"),
+            os.path.join(program_files, "MetaTrader 5 Terminal"),
+            os.path.join(program_files_x86, "MetaTrader 5 Terminal"),
+        ]
+
+        # Broker-specific paths (common brokers)
+        broker_paths = [
+            os.path.join(program_files, "FxPro - MetaTrader 5"),
+            os.path.join(program_files_x86, "FxPro - MetaTrader 5"),
+            os.path.join(program_files, "IC Markets - MetaTrader 5"),
+            os.path.join(program_files_x86, "IC Markets - MetaTrader 5"),
+            os.path.join(program_files, "Pepperstone - MetaTrader 5"),
+            os.path.join(program_files_x86, "Pepperstone - MetaTrader 5"),
+            os.path.join(program_files, "XM - MetaTrader 5"),
+            os.path.join(program_files_x86, "XM - MetaTrader 5"),
+        ]
+
+        # Portable mode paths
+        portable_paths = []
+        if user_profile:
+            portable_paths.extend([
+                os.path.join(user_profile, "Desktop", "MetaTrader 5"),
+                os.path.join(user_profile, "Documents", "MetaTrader 5"),
+                os.path.join(user_profile, "Downloads", "MetaTrader 5"),
+            ])
+
+        # Add all paths to check
+        paths.extend(standard_paths)
+        paths.extend(broker_paths)
+        paths.extend(portable_paths)
+
+        # Check AppData paths
+        if app_data:
+            paths.append(os.path.join(app_data, "MetaQuotes", "Terminal"))
+        if local_app_data:
+            paths.append(os.path.join(local_app_data, "MetaQuotes", "Terminal"))
+
+    return paths
+
+
+def validate_mt5_path(path: str) -> Optional[str]:
+    """
+    Validate if a path contains terminal64.exe or terminal.exe.
+    Returns the valid path or None if invalid.
+    """
+    if not path or not os.path.isdir(path):
+        return None
+    terminal_exe = os.path.join(path, "terminal64.exe")
+    if os.path.exists(terminal_exe):
+        return path
+    terminal_exe = os.path.join(path, "terminal.exe")
+    if os.path.exists(terminal_exe):
+        return path
+    return None
+
+
+def auto_detect_mt5_path() -> Optional[str]:
+    """
+    Try to automatically detect a valid MT5 installation path.
+    Returns the first valid path found or None.
+    """
+    logger.info("Attempting to auto-detect MT5 installation path")
+    for path in find_mt5_installation_paths():
+        if validate_mt5_path(path):
+            logger.info(f"Found valid MT5 installation at: {path}")
+            return path
+    logger.warning("Could not auto-detect any valid MT5 installation path")
+    return None
+
+
 class MT5Connector:
     _instance: Optional["MT5Connector"] = None
     _initialized: bool = False
@@ -189,7 +277,7 @@ class MT5Connector:
         if self._initialized:
             return
         self._connected: bool = False
-        self._demo_mode: bool = not MT5_AVAILABLE  # Only demo if MT5 not installed
+        self._demo_mode: bool = False
         self._demo_positions: List[Dict[str, Any]] = []
         self._demo_balance: float = 10000.0
         self._demo_equity: float = 10000.0
@@ -206,6 +294,15 @@ class MT5Connector:
             "leverage": 100,
         }
         self._credentials: Dict[str, Any] = {}
+        self._bridge: Optional[MT5BridgeClient] = (
+            MT5BridgeClient(settings.MT5_BRIDGE_URL)
+            if settings.MT5_BRIDGE_URL
+            else None
+        )
+        # Auto-detect MT5 path if not configured
+        self._mt5_path: Optional[str] = settings.MT5_PATH
+        if not self._mt5_path:
+            self._mt5_path = auto_detect_mt5_path()
         self._debug_info: Dict[str, Any] = {
             "initialize_result": None,
             "login_result": None,
@@ -214,7 +311,7 @@ class MT5Connector:
             "account_info": None,
             "version": None,
             "xauusd_status": None,
-            "terminal_path": None,
+            "terminal_path": self._mt5_path,
             "data_path": None,
             "pid": None,
             "connection_time": None,
@@ -225,6 +322,19 @@ class MT5Connector:
         self._stop_reconnect: threading.Event = threading.Event()
         self._terminal_process: Optional[subprocess.Popen] = None
         self._initialized = True
+
+    def _bridge_enabled(self) -> bool:
+        return self._bridge is not None and (settings.MT5_USE_BRIDGE or not MT5_AVAILABLE)
+
+    def _bridge_error(self, stage: str, exc: Exception) -> Dict[str, Any]:
+        self._connected = False
+        return {
+            "success": False,
+            "stage": stage,
+            "error": str(exc),
+            "mt5_last_error": None,
+            "suggested_solution": "Start the MT5 Bridge on Windows and verify MT5_BRIDGE_URL.",
+        }
 
     def _get_error_description(self, error_code: int) -> str:
         error_descriptions = {
@@ -445,11 +555,15 @@ class MT5Connector:
             }
 
     def _ensure_connection(self) -> bool:
+        if self._bridge_enabled():
+            return self.is_connected()
         if not self.is_connected():
             return self.reconnect()
         return True
 
     def _ensure_symbol(self, symbol: str = "XAUUSD") -> bool:
+        if self._bridge_enabled():
+            return self._ensure_connection()
         if not self._ensure_connection():
             return False
         self._log_mt5_api_call("symbol_select", symbol, True)
@@ -983,29 +1097,37 @@ class MT5Connector:
         password: Optional[str] = None,
         server: Optional[str] = None,
     ) -> Dict[str, Any]:
-        # Check if in demo mode
-        if self._demo_mode:
-            step = 1
-            step_start = time.time()
-            debug_log.add(
-                step=step,
-                description="📊 Demo mode activated! Using simulated account.",
-                level="INFO",
-                function="connect",
-            )
-            self._connected = True
-            self._debug_info["account_info"] = self._demo_account_info
-            debug_log.add(
-                step=step,
-                description="✅ Demo mode connected successfully!",
-                level="SUCCESS",
-                function="connect",
-                result={"connected": True, "account": self._demo_account_info},
-                execution_time_ms=(time.time() - step_start) * 1000,
-            )
+        if self._bridge_enabled():
+            try:
+                result = self._bridge.connect(
+                    login or settings.MT5_LOGIN,
+                    password or settings.MT5_PASSWORD,
+                    server or settings.MT5_SERVER,
+                )
+                self._connected = bool(result.get("success", True))
+                self._credentials = {
+                    "login": login or settings.MT5_LOGIN,
+                    "password": password or settings.MT5_PASSWORD,
+                    "server": server or settings.MT5_SERVER,
+                }
+                return {
+                    "success": self._connected,
+                    "stage": "bridge",
+                    "message": result.get("message", "Connected through MT5 bridge"),
+                    "bridge": True,
+                    **result,
+                }
+            except Exception as exc:
+                return self._bridge_error("bridge_connect", exc)
+
+        if not MT5_AVAILABLE:
+            self._connected = False
             return {
-                "success": True,
-                "debug_info": self._debug_info,
+                "success": False,
+                "stage": "module",
+                "error": "MetaTrader5 Python module is not installed or not available",
+                "mt5_last_error": None,
+                "suggested_solution": "Install MetaTrader5 package and ensure the MT5 terminal is installed correctly",
             }
         overall_start = time.time()
         debug_log.clear()
@@ -1162,79 +1284,54 @@ class MT5Connector:
                 level="INFO",
                 function="connect",
             )
-            # Skip shutdown if terminal is already running to avoid issues
-            if not is_running:
-                try:
-                    self._log_mt5_api_call("shutdown")
-                    mt5.shutdown()
-                    time.sleep(2)
-                except Exception:
-                    pass
+            
+            # Always clean up first
+            try:
+                self._log_mt5_api_call("shutdown")
+                mt5.shutdown()
+                time.sleep(1)
+            except Exception:
+                pass
+                
             initialize_result = False
             self._log_mt5_api_call("initialize")
             
-            # If terminal is already running, just initialize normally (no login/password/server)
-            if is_running:
+            # FIRST TRY: initialize with NO PARAMETERS (connect to already running terminal)
+            debug_log.add(
+                step=step,
+                description="Trying mt5.initialize() with NO PARAMETERS first",
+                level="INFO",
+                function="connect",
+            )
+            initialize_result = mt5.initialize()
+            last_error = mt5.last_error()
+            debug_log.add(
+                step=step,
+                description=f"No-params initialize result: {initialize_result}, last_error: {last_error}",
+                level="INFO",
+                function="connect",
+            )
+            
+            # IF THAT FAILED, try with credentials
+            if not initialize_result and use_creds_login and use_creds_password and use_creds_server:
                 debug_log.add(
                     step=step,
-                    description="Terminal already running - initializing without path",
+                    description="Trying mt5.initialize with login/password/server",
                     level="INFO",
                     function="connect",
                 )
-                initialize_result = mt5.initialize(timeout=60000)
+                initialize_result = mt5.initialize(
+                    login=use_creds_login,
+                    password=use_creds_password,
+                    server=use_creds_server
+                )
                 last_error = mt5.last_error()
                 debug_log.add(
                     step=step,
-                    description=f"Initialize result: {initialize_result}, last_error: {last_error}",
+                    description=f"Credentials initialize result: {initialize_result}, last_error: {last_error}",
                     level="INFO",
                     function="connect",
                 )
-            else:
-                # Try different initialization strategies in order
-                # Strategy 1: Initialize with login/password/server
-                if use_creds_login and use_creds_password and use_creds_server:
-                    debug_log.add(
-                        step=step,
-                        description="Trying mt5.initialize with login/password/server",
-                        level="INFO",
-                        function="connect",
-                    )
-                    initialize_result = mt5.initialize(
-                        login=use_creds_login,
-                        password=use_creds_password,
-                        server=use_creds_server,
-                        timeout=60000
-                    )
-                    last_error = mt5.last_error()
-                    debug_log.add(
-                        step=step,
-                        description=f"Strategy 1 result: {initialize_result}, last_error: {last_error}",
-                        level="INFO",
-                        function="connect",
-                    )
-                
-                # Strategy 2: If Strategy 1 failed, try path
-                if not initialize_result:
-                    if settings.MT5_PATH:
-                        debug_log.add(
-                            step=step,
-                            description="Trying mt5.initialize with path",
-                            level="INFO",
-                            function="connect",
-                        )
-                        initialize_result = mt5.initialize(
-                            path=settings.MT5_PATH, timeout=60000
-                        )
-                        last_error = mt5.last_error()
-                    else:
-                        debug_log.add(
-                            step=step,
-                            description="Trying mt5.initialize without path",
-                            level="INFO",
-                            function="connect",
-                        )
-                        initialize_result = mt5.initialize(timeout=60000)
-                        last_error = mt5.last_error()
             self._debug_info["initialize_result"] = initialize_result
             self._debug_info["last_error"] = last_error
             debug_log.add(
@@ -1645,6 +1742,12 @@ class MT5Connector:
 
     def disconnect(self) -> None:
         try:
+            if self._bridge_enabled():
+                if self._connected:
+                    self._bridge.disconnect()
+                self._connected = False
+                self._credentials = {}
+                return
             self._stop_reconnect_thread()
             self._stop_monitoring_thread()
             if self._connected:
@@ -1673,6 +1776,8 @@ class MT5Connector:
 
     def reconnect(self) -> bool:
         mt5_connection_logger.info("Attempting to reconnect...")
+        if self._bridge_enabled() and not self._credentials:
+            return self.is_connected()
         result = self.connect(
             login=self._credentials.get("login"),
             password=self._credentials.get("password"),
@@ -1687,6 +1792,15 @@ class MT5Connector:
         return self._ensure_symbol(symbol)
 
     def is_connected(self) -> bool:
+        if self._bridge_enabled():
+            try:
+                status = self._bridge.status()
+                self._connected = bool(status.get("connected"))
+                return self._connected
+            except Exception as e:
+                mt5_errors_logger.error(f"MT5 bridge status check failed: {str(e)}")
+                self._connected = False
+                return False
         if not MT5_AVAILABLE:
             return False
         try:
@@ -1704,6 +1818,20 @@ class MT5Connector:
 
     def get_detailed_status(self) -> Dict[str, Any]:
         """Get detailed connection status including all validation checks."""
+        if self._bridge_enabled():
+            try:
+                status = self._bridge.status()
+                status.setdefault("checks", {})
+                status["bridge"] = True
+                return status
+            except Exception as exc:
+                return {
+                    "connected": False,
+                    "bridge": True,
+                    "last_error": str(exc),
+                    "checks": {},
+                }
+
         status = {
             "connected": False,
             "terminal": None,
@@ -1867,21 +1995,15 @@ class MT5Connector:
 
     def get_tick(self, symbol: str) -> Optional[Dict[str, Any]]:
         mt5_api_logger.info(f"Calling get_tick for {symbol}")
+        if self._bridge_enabled():
+            try:
+                return self._bridge.tick(symbol)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge tick failed for {symbol}: {str(exc)}")
+                return None
         if not MT5_AVAILABLE or not self._ensure_connection():
-            import time
-            import random
-            # Return dummy tick data
-            base_price = 3000
-            return {
-                "time": int(time.time()),
-                "bid": base_price + random.uniform(-5, 5),
-                "ask": base_price + random.uniform(-4.5, 5.5),
-                "last": base_price + random.uniform(-4.7, 5.3),
-                "volume": random.randint(1, 100),
-                "time_msc": int(time.time() * 1000),
-                "flags": 0,
-                "volume_real": random.uniform(0.1, 10.0),
-            }
+            mt5_errors_logger.error(f"Live tick unavailable for {symbol}: MT5 is not connected")
+            return None
         if not self._ensure_symbol(symbol):
             return None
 
@@ -1899,6 +2021,12 @@ class MT5Connector:
 
     def get_account_info(self) -> Optional[Dict[str, Any]]:
         mt5_api_logger.info("Calling get_account_info")
+        if self._bridge_enabled():
+            try:
+                return self._bridge.account()
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge account_info failed: {str(exc)}")
+                return None
         if not MT5_AVAILABLE or not self._ensure_connection():
             # Return dummy account info
             return {
@@ -1950,40 +2078,19 @@ class MT5Connector:
         mt5_api_logger.info(
             f"Calling get_candles for {symbol} {timeframe} {count}"
         )
+        if self._bridge_enabled():
+            try:
+                return self._bridge.candles(symbol, timeframe, count)
+            except Exception as exc:
+                mt5_errors_logger.error(
+                    f"MT5 bridge candles failed for {symbol} {timeframe}: {str(exc)}"
+                )
+                return None
         if not MT5_AVAILABLE:
-            # Generate dummy candlestick data
-            import time
-            import random
-            now = int(time.time())
-            timeframe_seconds = {
-                "M1": 60, "M5": 300, "M15": 900, "M30": 1800, 
-                "H1": 3600, "H4": 14400, "D1": 86400
-            }
-            tf_sec = timeframe_seconds.get(timeframe, 3600)
-            candles = []
-            price = 3000.0
-            for i in range(count):
-                t = now - (count - i - 1) * tf_sec
-                volatility = 5.0 if timeframe in ["H1", "H4", "D1"] else 2.0
-                change = (random.random() - 0.5) * volatility
-                open_price = price
-                close_price = open_price + change
-                high = max(open_price, close_price) + random.random() * volatility
-                low = min(open_price, close_price) - random.random() * volatility
-                
-                candles.append({
-                    "time": t,
-                    "open": round(open_price, 2),
-                    "high": round(high, 2),
-                    "low": round(low, 2),
-                    "close": round(close_price, 2),
-                    "tick_volume": random.randint(100, 10000),
-                    "spread": random.randint(1, 10),
-                    "real_volume": random.randint(1, 100),
-                })
-                price = close_price
-            print(f"[MT5 Connector] Generated {len(candles)} dummy candles")
-            return candles
+            mt5_errors_logger.error(
+                f"Live candles unavailable for {symbol} {timeframe}: MetaTrader5 module not available"
+            )
+            return None
         
         if not self._ensure_connection():
             print("[MT5 Connector] _ensure_connection failed")
@@ -2060,6 +2167,12 @@ class MT5Connector:
 
     def get_symbols(self) -> List[Dict[str, Any]]:
         mt5_api_logger.info("Calling get_symbols")
+        if self._bridge_enabled():
+            try:
+                return self._bridge.symbols()
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge symbols failed: {str(exc)}")
+                return []
         if not self._ensure_connection():
             return []
 
@@ -2089,6 +2202,12 @@ class MT5Connector:
 
     def get_open_positions(self) -> List[Dict[str, Any]]:
         mt5_api_logger.info("Calling get_open_positions")
+        if self._bridge_enabled():
+            try:
+                return self._bridge.positions()
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge positions failed: {str(exc)}")
+                return []
         if not self._ensure_connection():
             return []
 
@@ -2110,6 +2229,12 @@ class MT5Connector:
         mt5_api_logger.info(
             f"Calling get_deal_history from {date_from} to {date_to}"
         )
+        if self._bridge_enabled():
+            try:
+                return self._bridge.history(date_from, date_to)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge deal history failed: {str(exc)}")
+                return []
         if not self._ensure_connection():
             return []
 
@@ -2129,6 +2254,12 @@ class MT5Connector:
 
     def get_orders(self) -> List[Dict[str, Any]]:
         mt5_api_logger.info("Calling get_orders (pending orders)")
+        if self._bridge_enabled():
+            try:
+                return self._bridge.orders()
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge orders failed: {str(exc)}")
+                return []
         if not self._ensure_connection():
             return []
 
@@ -2150,6 +2281,12 @@ class MT5Connector:
         mt5_api_logger.info(
             f"Calling get_order_history from {date_from} to {date_to}"
         )
+        if self._bridge_enabled():
+            try:
+                return self._bridge.history(date_from, date_to)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge order history failed: {str(exc)}")
+                return []
         if not self._ensure_connection():
             return []
 
@@ -2276,38 +2413,17 @@ class MT5Connector:
         mt5_api_logger.info(
             f"Calling open_buy_order for {symbol}, volume: {volume}"
         )
+        if self._bridge_enabled():
+            try:
+                return self._bridge.buy(symbol, volume, sl, tp)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge buy failed for {symbol}: {str(exc)}")
+                return None
         if self._demo_mode:
-            # Demo mode - create fake position
-            import random
-            import time
-            fake_ticket = random.randint(100000, 999999)
-            fake_price = 3000 + random.uniform(-5, 5)
-            position = {
-                "ticket": fake_ticket,
-                "time": int(time.time()),
-                "type": 0,  # 0 = buy
-                "symbol": symbol,
-                "volume": volume,
-                "price_open": fake_price,
-                "sl": sl,
-                "tp": tp,
-                "swap": 0,
-                "profit": 0,
-            }
-            self._demo_positions.append(position)
-            # Return fake result object
-            class DemoOrderResult:
-                retcode = 10009
-                deal = fake_ticket
-                order = fake_ticket
-                volume = volume
-                price = fake_price
-                bid = fake_price - 0.5
-                ask = fake_price + 0.5
-                comment = "Demo buy order executed"
-                request_id = fake_ticket
-                retcode_external = 0
-            return DemoOrderResult()
+            mt5_errors_logger.error(
+                f"Cannot open live buy order for {symbol}: MT5 demo fallback is disabled"
+            )
+            return None
         if not self._ensure_connection():
             return None
         if not self._ensure_symbol(symbol):
@@ -2352,38 +2468,17 @@ class MT5Connector:
         mt5_api_logger.info(
             f"Calling open_sell_order for {symbol}, volume: {volume}"
         )
+        if self._bridge_enabled():
+            try:
+                return self._bridge.sell(symbol, volume, sl, tp)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge sell failed for {symbol}: {str(exc)}")
+                return None
         if self._demo_mode:
-            # Demo mode - create fake position
-            import random
-            import time
-            fake_ticket = random.randint(100000, 999999)
-            fake_price = 3000 + random.uniform(-5, 5)
-            position = {
-                "ticket": fake_ticket,
-                "time": int(time.time()),
-                "type": 1,  # 1 = sell
-                "symbol": symbol,
-                "volume": volume,
-                "price_open": fake_price,
-                "sl": sl,
-                "tp": tp,
-                "swap": 0,
-                "profit": 0,
-            }
-            self._demo_positions.append(position)
-            # Return fake result object
-            class DemoOrderResult:
-                retcode = 10009
-                deal = fake_ticket
-                order = fake_ticket
-                volume = volume
-                price = fake_price
-                bid = fake_price - 0.5
-                ask = fake_price + 0.5
-                comment = "Demo sell order executed"
-                request_id = fake_ticket
-                retcode_external = 0
-            return DemoOrderResult()
+            mt5_errors_logger.error(
+                f"Cannot open live sell order for {symbol}: MT5 demo fallback is disabled"
+            )
+            return None
         if not self._ensure_connection():
             return None
         if not self._ensure_symbol(symbol):
@@ -2420,10 +2515,12 @@ class MT5Connector:
 
     def get_positions(self, symbol: Optional[str] = None):
         mt5_api_logger.info(f"Calling get_positions for symbol: {symbol}")
-        if self._demo_mode:
-            if symbol:
-                return [p for p in self._demo_positions if p["symbol"] == symbol]
-            return self._demo_positions
+        if self._bridge_enabled():
+            try:
+                return self._bridge.positions(symbol)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge get_positions failed: {str(exc)}")
+                return []
         if not self._ensure_connection():
             return []
         self._log_mt5_api_call("positions_get")
@@ -2435,16 +2532,16 @@ class MT5Connector:
 
     def close_position(self, ticket: int):
         mt5_api_logger.info(f"Calling close_position for ticket: {ticket}")
+        if self._bridge_enabled():
+            try:
+                return self._bridge.close(ticket)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge close failed for {ticket}: {str(exc)}")
+                return None
         if self._demo_mode:
-            # Demo mode: remove position from _demo_positions
-            for i, p in enumerate(self._demo_positions):
-                if p["ticket"] == ticket:
-                    removed = self._demo_positions.pop(i)
-                    class DemoCloseResult:
-                        retcode = 10009
-                        deal = ticket
-                        comment = "Demo position closed"
-                    return DemoCloseResult()
+            mt5_errors_logger.error(
+                f"Cannot close position {ticket}: MT5 demo fallback is disabled"
+            )
             return None
         if not self._ensure_connection():
             return None
@@ -2494,13 +2591,16 @@ class MT5Connector:
 
     def close_all_positions(self):
         mt5_api_logger.info("Calling close_all_positions")
+        if self._bridge_enabled():
+            results = []
+            for pos in self.get_open_positions():
+                ticket = pos.get("ticket") or pos.get("id")
+                if ticket is not None:
+                    results.append(self.close_position(int(ticket)))
+            return results
         if self._demo_mode:
-            count = len(self._demo_positions)
-            self._demo_positions = []
-            class DemoCloseAllResult:
-                retcode = 10009
-                comment = f"Demo: All demo positions closed"
-            return [DemoCloseAllResult()]
+            mt5_errors_logger.error("Cannot close all positions: MT5 demo fallback is disabled")
+            return []
         if not self._ensure_connection():
             return []
 
@@ -2526,6 +2626,12 @@ class MT5Connector:
         mt5_api_logger.info(
             f"Calling modify_position_sl_tp for ticket: {ticket}, sl: {sl}, tp: {tp}"
         )
+        if self._bridge_enabled():
+            try:
+                return self._bridge.modify(ticket, sl, tp)
+            except Exception as exc:
+                mt5_errors_logger.error(f"MT5 bridge modify failed for {ticket}: {str(exc)}")
+                return None
         if not self._ensure_connection():
             return None
 
@@ -2560,31 +2666,22 @@ class MT5Connector:
         return debug_log.get_all()
 
     def get_detailed_status(self) -> Dict[str, Any]:
-        try:
-            if self._demo_mode:
-                account_info = self._demo_account_info
+        if self._bridge_enabled():
+            try:
+                status = self._bridge.status()
+                status.setdefault("checks", {})
+                status["bridge"] = True
+                self._connected = bool(status.get("connected"))
+                return status
+            except Exception as exc:
+                self._connected = False
                 return {
-                    "connected": self._connected,
-                    "terminal": "demo",
-                    "account": str(account_info.get("login")) if account_info else None,
-                    "server": account_info.get("server") if account_info else None,
-                    "balance": account_info.get("balance") if account_info else 0.0,
-                    "equity": account_info.get("equity") if account_info else 0.0,
-                    "symbol_ready": True,
-                    "candles_ready": True,
-                    "last_error": None,
-                    "account_info": account_info,
-                    "checks": {
-                        "terminal_running": True,
-                        "mt5_initialized": True,
-                        "login_success": True,
-                        "account_info": True,
-                        "terminal_info": True,
-                        "symbol_exists": True,
-                        "candles_retrievable": True
-                    }
+                    "connected": False,
+                    "bridge": True,
+                    "last_error": str(exc),
+                    "checks": {},
                 }
-            
+        try:
             account_info = self.get_account_info() if self._connected else None
             
             # Check symbol availability
@@ -2652,10 +2749,14 @@ class MT5Connector:
             }
 
     def get_account_info(self) -> Optional[Dict[str, Any]]:
+        if self._bridge_enabled():
+            try:
+                return self._bridge.account()
+            except Exception as e:
+                mt5_errors_logger.error(f"MT5 bridge get_account_info failed: {str(e)}")
+                return None
         if not self._connected:
             return None
-        if self._demo_mode:
-            return self._demo_account_info
         try:
             info = mt5.account_info()
             if info:

@@ -153,6 +153,13 @@ class OpenOrderRequest(BaseModel):
     comment: str = ""
 
 
+class TradeOrderRequest(BaseModel):
+    symbol: str
+    volume: float
+    sl: Optional[float] = None
+    tp: Optional[float] = None
+
+
 class ModifySLTPRequest(BaseModel):
     mt5_ticket: int
     sl: Optional[float] = None
@@ -424,6 +431,7 @@ class CandlesRequest(BaseModel):
 
 
 class TradingPanelRequest(BaseModel):
+    symbol: str
     volume: float
     sl: Optional[float] = None
     tp: Optional[float] = None
@@ -452,3 +460,25 @@ class AIAnalyzeResponse(BaseModel):
     reason: str
     support: List[float]
     resistance: List[float]
+
+
+# MetaApi Schemas
+class MetaApiConnectRequest(BaseModel):
+    login: int
+    password: str
+    server: str
+    account_id: Optional[str] = None
+
+
+class MetaApiCreateDemoAccountRequest(BaseModel):
+    broker: str
+    server: str
+    leverage: int = 100
+    balance: float = 10000.0
+
+
+class MetaApiAccountStatus(BaseModel):
+    connected: bool
+    demo_mode: bool
+    metaapi_available: bool
+    credentials: Optional[Dict[str, Any]] = None
